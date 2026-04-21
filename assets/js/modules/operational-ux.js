@@ -8,6 +8,10 @@ export function createOperationalUxModule({ tabEls = {}, state = {} } = {}) {
   let observer = null;
 
   const TAB_CONFIG = {
+    dashboard: {
+      focusSelector: '',
+      persistSelectors: []
+    },
     sales: {
       focusSelector: '#sale-product-search',
       persistSelectors: [
@@ -31,14 +35,13 @@ export function createOperationalUxModule({ tabEls = {}, state = {} } = {}) {
         '#product-filter-stock'
       ]
     },
-    payables: {
-      focusSelector: '#payable-filter-supplier',
-      persistSelectors: [
-        '#payable-filter-supplier',
-        '#payable-filter-status',
-        '#payable-filter-date-from',
-        '#payable-filter-date-to'
-      ]
+    reports: {
+      focusSelector: '',
+      persistSelectors: []
+    },
+    deliveries: {
+      focusSelector: '',
+      persistSelectors: []
     },
     clients: {
       focusSelector: '#account-filter-client',
@@ -48,6 +51,27 @@ export function createOperationalUxModule({ tabEls = {}, state = {} } = {}) {
         '#account-filter-date-from',
         '#account-filter-date-to'
       ]
+    },
+    suppliers: {
+      focusSelector: '',
+      persistSelectors: []
+    },
+    purchases: {
+      focusSelector: '',
+      persistSelectors: []
+    },
+    payables: {
+      focusSelector: '#payable-filter-supplier',
+      persistSelectors: [
+        '#payable-filter-supplier',
+        '#payable-filter-status',
+        '#payable-filter-date-from',
+        '#payable-filter-date-to'
+      ]
+    },
+    users: {
+      focusSelector: '',
+      persistSelectors: []
     },
     settings: {
       focusSelector: 'input[name="storeName"]',
@@ -71,7 +95,7 @@ export function createOperationalUxModule({ tabEls = {}, state = {} } = {}) {
     try {
       localStorage.setItem(getStorageKey(key), JSON.stringify(value));
     } catch (error) {
-      console.warn('Falha ao salvar UX state:', error);
+      console.warn('Falha ao salvar estado operacional:', error);
     }
   }
 
@@ -80,7 +104,7 @@ export function createOperationalUxModule({ tabEls = {}, state = {} } = {}) {
       const raw = localStorage.getItem(getStorageKey(key));
       return raw ? JSON.parse(raw) : fallback;
     } catch (error) {
-      console.warn('Falha ao ler UX state:', error);
+      console.warn('Falha ao ler estado operacional:', error);
       return fallback;
     }
   }
@@ -102,7 +126,10 @@ export function createOperationalUxModule({ tabEls = {}, state = {} } = {}) {
   }
 
   function getTabConfig(tabName) {
-    return TAB_CONFIG[tabName] || { focusSelector: '', persistSelectors: [] };
+    return TAB_CONFIG[tabName] || {
+      focusSelector: '',
+      persistSelectors: []
+    };
   }
 
   function collectTabValues(tabName) {
@@ -168,10 +195,10 @@ export function createOperationalUxModule({ tabEls = {}, state = {} } = {}) {
     const target = tabEl.querySelector(config.focusSelector);
     if (!target || typeof target.focus !== 'function') return;
 
-    const tag = String(document.activeElement?.tagName || '').toLowerCase();
+    const activeTag = String(document.activeElement?.tagName || '').toLowerCase();
     const activeIsTyping =
-      ['input', 'textarea', 'select'].includes(tag) ||
-      document.activeElement?.isContentEditable;
+      ['input', 'textarea', 'select'].includes(activeTag) ||
+      Boolean(document.activeElement?.isContentEditable);
 
     if (activeIsTyping) return;
 
@@ -204,7 +231,9 @@ export function createOperationalUxModule({ tabEls = {}, state = {} } = {}) {
       modalRoot.querySelector('#account-modal-close') ||
       modalRoot.querySelector('#account-details-close') ||
       modalRoot.querySelector('#account-edit-close') ||
-      modalRoot.querySelector('#account-delete-close');
+      modalRoot.querySelector('#account-delete-close') ||
+      modalRoot.querySelector('#confirm-delete-close') ||
+      modalRoot.querySelector('#global-search-modal-close');
 
     if (closeButton) {
       closeButton.click();
@@ -231,8 +260,12 @@ export function createOperationalUxModule({ tabEls = {}, state = {} } = {}) {
       return true;
     }
 
-    form.requestSubmit?.();
-    return true;
+    if (typeof form.requestSubmit === 'function') {
+      form.requestSubmit();
+      return true;
+    }
+
+    return false;
   }
 
   function focusGlobalSearch() {
@@ -243,7 +276,9 @@ export function createOperationalUxModule({ tabEls = {}, state = {} } = {}) {
 
     if (target && typeof target.focus === 'function') {
       target.focus();
-      target.select?.();
+      if (typeof target.select === 'function') {
+        target.select();
+      }
     }
   }
 
