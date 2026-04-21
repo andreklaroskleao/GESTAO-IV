@@ -265,6 +265,8 @@ const notificationsModule = createNotificationsModule({
   updateByPath
 });
 
+notificationsModule.bindBell();
+
 const dashboardModule = createDashboardModule({
   state,
   tabEls,
@@ -1009,8 +1011,6 @@ els.globalSearchInput?.addEventListener('input', () => {
     debouncedGlobalSearch();
   }
 });
-
-notificationsModule.bindBell();
 
 watchAuth(async (user) => {
   state.currentUser = user;
