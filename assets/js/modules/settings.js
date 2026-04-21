@@ -1,4 +1,4 @@
-import { escapeHtml, bindSubmitGuard, bindAsyncButton } from './ui.js';
+import { escapeHtml, bindSubmitGuard, bindAsyncButton, showToast } from './ui.js';
 
 export function createSettingsModule(ctx) {
   const {
@@ -31,20 +31,35 @@ export function createSettingsModule(ctx) {
 
   let shouldShowAuditLogs = false;
 
+  function normalizeBooleanRadio(value) {
+    return String(value) === 'true';
+  }
+
+  async function getSystemSettingsDoc() {
+    const rows = await listCollection('settings');
+    return rows.find((item) => item.scope === 'system') || null;
+  }
+
   async function saveSettings() {
     const form = tabEls.settings.querySelector('#settings-form');
+    if (!form) return;
+
     const payload = Object.fromEntries(new FormData(form).entries());
 
-    payload.lowStockThreshold = Number(payload.lowStockThreshold || 5);
-    payload.thermalCompactMode = payload.thermalCompactMode === 'true';
-    payload.thermalAutoPrint = payload.thermalAutoPrint === 'true';
+    payload.lowStockThreshold = Math.max(0, Number(payload.lowStockThreshold || 5));
+    payload.thermalCompactMode = normalizeBooleanRadio(payload.thermalCompactMode);
+    payload.thermalAutoPrint = normalizeBooleanRadio(payload.thermalAutoPrint);
 
     const chosenTheme = payload.theme || 'system';
     setTheme(chosenTheme);
     delete payload.theme;
 
-    const existing = (await listCollection('settings')).find((item) => item.scope === 'system');
+    if (!String(payload.storeName || '').trim()) {
+      alert('Informe o nome da loja.');
+      return;
+    }
 
+    const existing = await getSystemSettingsDoc();
     const previous = existing || {};
 
     const changes = [];
@@ -75,7 +90,8 @@ export function createSettingsModule(ctx) {
     if (existing) {
       await updateByPath('settings', existing.id, {
         ...payload,
-        scope: 'system'
+        scope: 'system',
+        updatedAt: new Date().toISOString()
       });
 
       await auditModule.log({
@@ -90,7 +106,8 @@ export function createSettingsModule(ctx) {
     } else {
       const createdId = await createDoc(refs.settings, {
         ...payload,
-        scope: 'system'
+        scope: 'system',
+        createdAt: new Date().toISOString()
       });
 
       await auditModule.log({
@@ -104,15 +121,26 @@ export function createSettingsModule(ctx) {
       });
     }
 
-    alert('Configurações salvas com sucesso.');
+    showToast('Configurações salvas com sucesso.', 'success');
   }
 
   async function savePassword() {
     const form = tabEls.settings.querySelector('#password-form');
-    const formData = new FormData(form);
+    if (!form) return;
 
+    const formData = new FormData(form);
     const currentPassword = String(formData.get('currentPassword') || '');
     const newPassword = String(formData.get('newPassword') || '');
+
+    if (!currentPassword || !newPassword) {
+      alert('Informe a senha atual e a nova senha.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      alert('A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
 
     await changeCurrentPassword(currentPassword, newPassword);
 
@@ -136,7 +164,7 @@ export function createSettingsModule(ctx) {
     });
 
     form.reset();
-    alert('Senha atualizada com sucesso.');
+    showToast('Senha atualizada com sucesso.', 'success');
   }
 
   function bindAuditFilters() {
@@ -168,85 +196,113 @@ export function createSettingsModule(ctx) {
   }
 
   function bindBackupEvents() {
-    bindAsyncButton(tabEls.settings.querySelector('#backup-export-btn'), async () => {
-      backupModule.downloadBackup();
-    }, { busyLabel: 'Exportando...' });
+    bindAsyncButton(
+      tabEls.settings.querySelector('#backup-export-btn'),
+      async () => {
+        backupModule.downloadBackup();
+      },
+      { busyLabel: 'Exportando...' }
+    );
 
-    bindAsyncButton(tabEls.settings.querySelector('#backup-import-btn'), async () => {
-      if (!canImportBackup(state.currentUser)) {
-        alert('Somente o usuário master pode importar backup.');
-        return;
-      }
+    bindAsyncButton(
+      tabEls.settings.querySelector('#backup-import-btn'),
+      async () => {
+        if (!canImportBackup(state.currentUser)) {
+          alert('Somente o usuário master pode importar backup.');
+          return;
+        }
 
-      const input = tabEls.settings.querySelector('#backup-import-file');
-      const file = input?.files?.[0];
+        const input = tabEls.settings.querySelector('#backup-import-file');
+        const file = input?.files?.[0];
 
-      if (!file) {
-        alert('Selecione um arquivo de backup em JSON.');
-        return;
-      }
+        if (!file) {
+          alert('Selecione um arquivo de backup em JSON.');
+          return;
+        }
 
-      await backupModule.importBackupFile(file);
-      input.value = '';
-    }, { busyLabel: 'Importando...' });
+        await backupModule.importBackupFile(file);
+        input.value = '';
+      },
+      { busyLabel: 'Importando...' }
+    );
   }
 
   function bindExcelEvents() {
-    bindAsyncButton(tabEls.settings.querySelector('#excel-export-btn'), async () => {
-      excelModule.exportAllExcel();
-    }, { busyLabel: 'Exportando...' });
+    bindAsyncButton(
+      tabEls.settings.querySelector('#excel-export-btn'),
+      async () => {
+        excelModule.exportAllExcel();
+      },
+      { busyLabel: 'Exportando...' }
+    );
 
-    bindAsyncButton(tabEls.settings.querySelector('#excel-import-btn'), async () => {
-      if (!canImportBackup(state.currentUser)) {
-        alert('Somente o usuário master pode importar Excel.');
-        return;
-      }
+    bindAsyncButton(
+      tabEls.settings.querySelector('#excel-import-btn'),
+      async () => {
+        if (!canImportBackup(state.currentUser)) {
+          alert('Somente o usuário master pode importar Excel.');
+          return;
+        }
 
-      const input = tabEls.settings.querySelector('#excel-import-file');
-      const file = input?.files?.[0];
+        const input = tabEls.settings.querySelector('#excel-import-file');
+        const file = input?.files?.[0];
 
-      if (!file) {
-        alert('Selecione um arquivo Excel.');
-        return;
-      }
+        if (!file) {
+          alert('Selecione um arquivo Excel.');
+          return;
+        }
 
-      await excelModule.importExcelFile(file);
-      input.value = '';
-    }, { busyLabel: 'Importando...' });
+        await excelModule.importExcelFile(file);
+        input.value = '';
+      },
+      { busyLabel: 'Importando...' }
+    );
   }
 
   function bindPrintEvents() {
-    bindAsyncButton(tabEls.settings.querySelector('#thermal-test-print-btn'), async () => {
-      printModule.printSaleReceipt({
-        customerName: 'Cliente teste',
-        paymentMethod: 'Dinheiro',
-        subtotal: 50,
-        discount: 5,
-        total: 45,
-        amountPaid: 50,
-        change: 5,
-        items: [
-          { productId: '1', name: 'Produto teste 1', quantity: 1, unitPrice: 20, total: 20 },
-          { productId: '2', name: 'Produto teste 2', quantity: 1, unitPrice: 30, total: 30 }
-        ]
-      });
-    }, { busyLabel: 'Abrindo...' });
+    bindAsyncButton(
+      tabEls.settings.querySelector('#thermal-test-print-btn'),
+      async () => {
+        printModule.printSaleReceipt({
+          customerName: 'Cliente teste',
+          paymentMethod: 'Dinheiro',
+          subtotal: 50,
+          discount: 5,
+          total: 45,
+          amountPaid: 50,
+          change: 5,
+          items: [
+            { productId: '1', name: 'Produto teste 1', quantity: 1, unitPrice: 20, total: 20 },
+            { productId: '2', name: 'Produto teste 2', quantity: 1, unitPrice: 30, total: 30 }
+          ]
+        });
+      },
+      { busyLabel: 'Abrindo...' }
+    );
   }
 
   function bindAuditPrint() {
-    bindAsyncButton(tabEls.settings.querySelector('#audit-print-btn'), async () => {
-      auditModule.printFilteredLogs(auditFilters, shouldShowAuditLogs);
-    }, { busyLabel: 'Abrindo...' });
+    bindAsyncButton(
+      tabEls.settings.querySelector('#audit-print-btn'),
+      async () => {
+        auditModule.printFilteredLogs(auditFilters, shouldShowAuditLogs);
+      },
+      { busyLabel: 'Abrindo...' }
+    );
   }
 
   function bindEvents() {
-    bindSubmitGuard(tabEls.settings.querySelector('#settings-form'), saveSettings, {
-      busyLabel: 'Salvando...'
-    });
+    bindSubmitGuard(
+      tabEls.settings.querySelector('#settings-form'),
+      saveSettings,
+      { busyLabel: 'Salvando...' }
+    );
 
-    bindSubmitGuard(tabEls.settings.querySelector('#password-form'), savePassword, {
-      busyLabel: 'Atualizando...'
-    });
+    bindSubmitGuard(
+      tabEls.settings.querySelector('#password-form'),
+      savePassword,
+      { busyLabel: 'Atualizando...' }
+    );
 
     bindAuditFilters();
     bindBackupEvents();
@@ -265,11 +321,9 @@ export function createSettingsModule(ctx) {
 
     const overdueCount = accounts.filter((item) => {
       if (!item.dueDate || Number(item.openAmount || 0) <= 0) return false;
-
       const due = new Date(`${item.dueDate}T00:00:00`);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-
       return due < today;
     }).length;
 
@@ -280,23 +334,11 @@ export function createSettingsModule(ctx) {
     })[0];
 
     return `
-      <div class="cards-grid">
-        <div class="metric-card">
-          <span>Contas em aberto</span>
-          <strong>${totalOpen.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
-        </div>
-        <div class="metric-card">
-          <span>Total já recebido</span>
-          <strong>${totalReceived.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
-        </div>
-        <div class="metric-card">
-          <span>Contas vencidas</span>
-          <strong>${overdueCount}</strong>
-        </div>
-        <div class="metric-card">
-          <span>Último fechamento</span>
-          <strong>${latestCash ? (latestCash.closingAmount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'}</strong>
-        </div>
+      <div class="filters-grid">
+        <div><strong>Contas em aberto</strong><br>${totalOpen.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+        <div><strong>Total já recebido</strong><br>${totalReceived.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+        <div><strong>Contas vencidas</strong><br>${overdueCount}</div>
+        <div><strong>Último fechamento</strong><br>${latestCash ? (latestCash.closingAmount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'}</div>
       </div>
     `;
   }
@@ -309,16 +351,17 @@ export function createSettingsModule(ctx) {
 
     tabEls.settings.innerHTML = `
       <div class="section-stack">
-        <div class="panel">
+        <div class="table-card">
           <div class="section-header">
             <h2>Geral</h2>
-            <span class="muted">Ajustes principais do sistema</span>
           </div>
 
-          <form id="settings-form" class="form-grid mobile-optimized">
+          <p class="auth-hint">Ajustes principais do sistema</p>
+
+          <form id="settings-form" class="form-grid">
             <label>
               Nome da loja
-              <input name="storeName" value="${escapeHtml(state.settings?.storeName || '')}" />
+              <input name="storeName" value="${escapeHtml(state.settings?.storeName || '')}" required />
             </label>
 
             <label>
@@ -328,12 +371,12 @@ export function createSettingsModule(ctx) {
 
             <label>
               Telefone da loja
-              <input name="phone" value="${escapeHtml(state.settings?.phone || state.settings?.storePhone || '')}" />
+              <input name="phone" value="${escapeHtml(state.settings?.phone || '')}" />
             </label>
 
             <label>
               Limite de estoque baixo
-              <input name="lowStockThreshold" type="number" min="1" value="${Number(state.settings?.lowStockThreshold || 5)}" />
+              <input name="lowStockThreshold" type="number" min="0" step="1" value="${Number(state.settings?.lowStockThreshold || 5)}" />
             </label>
 
             <label>
@@ -371,7 +414,7 @@ export function createSettingsModule(ctx) {
 
             <label style="grid-column:1 / -1;">
               Texto de garantia
-              <textarea name="warrantyText">${escapeHtml(state.settings?.warrantyText || '')}</textarea>
+              <textarea name="warrantyText" rows="4">${escapeHtml(state.settings?.warrantyText || '')}</textarea>
             </label>
 
             <div class="form-actions" style="grid-column:1 / -1;">
@@ -381,13 +424,14 @@ export function createSettingsModule(ctx) {
           </form>
         </div>
 
-        <div class="panel">
+        <div class="table-card">
           <div class="section-header">
             <h2>Segurança</h2>
-            <span class="muted">Troca de senha da sessão atual</span>
           </div>
 
-          <form id="password-form" class="form-grid mobile-optimized">
+          <p class="auth-hint">Troca de senha da sessão atual</p>
+
+          <form id="password-form" class="form-grid">
             <label>
               Senha atual
               <input name="currentPassword" type="password" required />
@@ -403,75 +447,63 @@ export function createSettingsModule(ctx) {
             </div>
           </form>
 
-          <div class="auth-hint" style="margin-top:12px;">
-            Usuários inativos não conseguem entrar. As permissões são conferidas tanto na interface quanto nas regras do Firestore.
+          <div class="empty-state" style="margin-top:12px; text-align:left;">
+            <span>Usuários inativos não conseguem entrar. As permissões continuam sendo conferidas na interface e nas regras do Firestore.</span>
           </div>
         </div>
 
-        <div class="panel">
+        <div class="table-card">
           <div class="section-header">
             <h2>Backup e importação</h2>
-            <span class="muted">JSON e Excel</span>
           </div>
 
-          <div class="grid-2">
-            <div class="table-card">
-              <div class="section-header">
-                <h3>Backup JSON</h3>
-              </div>
-              <div class="auth-hint" style="margin-bottom:12px;">Exportar a base em JSON.</div>
-              <div class="form-actions">
+          <p class="auth-hint">JSON e Excel</p>
+
+          <div class="filters-grid">
+            <div class="empty-state" style="text-align:left;">
+              <strong>Backup JSON</strong>
+              <span>Exportar a base em JSON.</span>
+              <div class="form-actions" style="margin-top:10px;">
                 <button class="btn btn-secondary" type="button" id="backup-export-btn">Exportar backup</button>
               </div>
             </div>
 
-            <div class="table-card">
-              <div class="section-header">
-                <h3>Importação JSON</h3>
-              </div>
-              <div class="auth-hint" style="margin-bottom:12px;">Restaurar dados por arquivo JSON.</div>
-              <input id="backup-import-file" type="file" accept=".json" />
-              <div class="form-actions" style="margin-top:12px;">
+            <div class="empty-state" style="text-align:left;">
+              <strong>Importação JSON</strong>
+              <span>Restaurar dados por arquivo JSON.</span>
+              <input id="backup-import-file" type="file" accept=".json,application/json" />
+              <div class="form-actions" style="margin-top:10px;">
                 <button class="btn btn-secondary" type="button" id="backup-import-btn">Importar backup</button>
               </div>
             </div>
 
-            <div class="table-card">
-              <div class="section-header">
-                <h3>Exportação Excel</h3>
-              </div>
-              <div class="auth-hint" style="margin-bottom:12px;">Exportar planilhas em um único arquivo.</div>
-              <div class="form-actions">
+            <div class="empty-state" style="text-align:left;">
+              <strong>Exportação Excel</strong>
+              <span>Exportar planilhas em um único arquivo.</span>
+              <div class="form-actions" style="margin-top:10px;">
                 <button class="btn btn-secondary" type="button" id="excel-export-btn">Exportar Excel</button>
               </div>
             </div>
 
-            <div class="table-card">
-              <div class="section-header">
-                <h3>Importação Excel</h3>
-              </div>
-              <div class="auth-hint" style="margin-bottom:12px;">Importar produtos, clientes e contas.</div>
-              <input id="excel-import-file" type="file" accept=".xlsx,.xls" />
-              <div class="form-actions" style="margin-top:12px;">
+            <div class="empty-state" style="text-align:left;">
+              <strong>Importação Excel</strong>
+              <span>Importar produtos, clientes e contas.</span>
+              <input id="excel-import-file" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" />
+              <div class="form-actions" style="margin-top:10px;">
                 <button class="btn btn-secondary" type="button" id="excel-import-btn">Importar Excel</button>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="panel settings-financial-scroll">
+        <div class="table-card">
           <div class="section-header">
             <h2>Resumo financeiro</h2>
-            <span class="muted">Visão rápida</span>
           </div>
+
+          <p class="auth-hint">Visão rápida</p>
           ${renderFinancialSummary()}
-        </div>
-
-        <div class="panel">
           ${cashierModule.renderCashSessionPanel()}
-        </div>
-
-        <div class="table-card settings-cash-history-scroll">
           ${cashierModule.renderHistoryTable()}
         </div>
 
@@ -487,7 +519,7 @@ export function createSettingsModule(ctx) {
             <input id="audit-filter-module" placeholder="Módulo" value="${escapeHtml(auditFilters.module)}" />
             <input id="audit-filter-action" placeholder="Ação" value="${escapeHtml(auditFilters.action)}" />
             <input id="audit-filter-entity-type" placeholder="Tipo" value="${escapeHtml(auditFilters.entityType)}" />
-            <input id="audit-filter-entity-label" placeholder="Registro" value="${escapeHtml(auditFilters.entityLabel)}" />
+            <input id="audit-filter-entity-label" placeholder="Entidade" value="${escapeHtml(auditFilters.entityLabel)}" />
             <input id="audit-filter-user" placeholder="Usuário" value="${escapeHtml(auditFilters.user)}" />
             <input id="audit-filter-date-from" type="date" value="${auditFilters.dateFrom}" />
             <input id="audit-filter-date-to" type="date" value="${auditFilters.dateTo}" />
@@ -495,9 +527,7 @@ export function createSettingsModule(ctx) {
             <button class="btn btn-secondary" type="button" id="audit-filter-clear">Limpar</button>
           </div>
 
-          <div class="settings-audit-scroll settings-audit-host">
-            ${auditModule.renderAuditTable(auditFilters, shouldShowAuditLogs, 80)}
-          </div>
+          ${auditModule.renderAuditTable(auditFilters, shouldShowAuditLogs, 80)}
         </div>
       </div>
     `;
@@ -505,7 +535,5 @@ export function createSettingsModule(ctx) {
     bindEvents();
   }
 
-  return {
-    render
-  };
+  return { render };
 }
