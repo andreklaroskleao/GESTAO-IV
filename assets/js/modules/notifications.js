@@ -10,6 +10,8 @@ export function createNotificationsModule(ctx) {
     dateTo: ''
   };
 
+  let isSyncingNotifications = false;
+
   function normalizeDateKey(value) {
     if (!value) return '';
 
@@ -61,6 +63,7 @@ export function createNotificationsModule(ctx) {
       const rowStatus = isRead(item) ? 'read' : 'unread';
 
       return (
+        item.deleted !== true &&
         (!filters.category || String(item.category || '') === filters.category) &&
         (!filters.status || rowStatus === filters.status) &&
         (!filters.dateFrom || !createdKey || createdKey >= filters.dateFrom) &&
@@ -81,7 +84,7 @@ export function createNotificationsModule(ctx) {
   } = {}) {
     if (!title || !sourceKey) return;
 
-    const exists = getRows().some((item) => item.sourceKey === sourceKey);
+    const exists = getRows().some((item) => item.sourceKey === sourceKey && item.deleted !== true);
     if (exists) return;
 
     await createDoc(refs.notifications, {
@@ -130,7 +133,7 @@ export function createNotificationsModule(ctx) {
     const badge = document.getElementById('notifications-badge');
     if (!badge) return;
 
-    const unreadCount = getUnreadRows().length;
+    const unreadCount = getUnreadRows().filter((item) => item.deleted !== true).length;
     badge.textContent = String(unreadCount);
     badge.classList.toggle('hidden', unreadCount <= 0);
   }
@@ -327,75 +330,178 @@ export function createNotificationsModule(ctx) {
     });
   }
 
-  async function generateSystemNotifications() {
-    const deliveries = state.deliveries || [];
+  async function syncLowStockNotifications() {
     const products = state.products || [];
-    const receivables = state.accountsReceivable || [];
-    const payables = state.accountsPayable || [];
     const lowStockThreshold = Number(state.settings?.lowStockThreshold || 5);
+    const existingNotifications = getRows().filter(
+      (item) => item.type === 'low_stock' && item.deleted !== true
+    );
+
+    for (const product of products) {
+      if (!product || product.deleted === true) continue;
+
+      const productQty = Number(product.quantity || 0);
+      const sourceKey = `low_stock_${product.id}`;
+      const existing = existingNotifications.find((item) => item.sourceKey === sourceKey);
+
+      if (productQty <= lowStockThreshold) {
+        if (!existing) {
+          await createNotification({
+            type: 'low_stock',
+            category: 'estoque',
+            title: 'Estoque baixo',
+            message: `${product.name || 'Produto'} com estoque em ${productQty}.`,
+            entityType: 'product',
+            entityId: product.id,
+            eventDate: normalizeDateKey(product.updatedAt || product.createdAt),
+            sourceKey
+          });
+        } else {
+          await updateByPath('notifications', existing.id, {
+            message: `${product.name || 'Produto'} com estoque em ${productQty}.`,
+            deleted: false
+          });
+        }
+      } else if (existing) {
+        await updateByPath('notifications', existing.id, {
+          deleted: true
+        });
+      }
+    }
+  }
+
+  async function syncDeliveryNotifications() {
+    const deliveries = state.deliveries || [];
+    const existingNotifications = getRows().filter(
+      (item) => item.type === 'delivery_pending' && item.deleted !== true
+    );
 
     for (const item of deliveries) {
-      if (item.deleted === true) continue;
+      if (!item || item.deleted === true) continue;
 
-      if (String(item.status || '').toLowerCase().includes('pendente')) {
-        await createNotification({
-          type: 'delivery_pending',
-          category: 'tele_entrega',
-          title: 'Tele-entrega pendente',
-          message: `Entrega de ${item.customerName || 'cliente'} aguardando ação.`,
-          entityType: 'delivery',
-          entityId: item.id,
-          eventDate: normalizeDateKey(item.scheduledAt),
-          sourceKey: `delivery_pending_${item.id}`
+      const sourceKey = `delivery_pending_${item.id}`;
+      const existing = existingNotifications.find((row) => row.sourceKey === sourceKey);
+      const isPending = String(item.status || '').toLowerCase().includes('pendente');
+
+      if (isPending) {
+        if (!existing) {
+          await createNotification({
+            type: 'delivery_pending',
+            category: 'tele_entrega',
+            title: 'Tele-entrega pendente',
+            message: `Entrega de ${item.customerName || 'cliente'} aguardando ação.`,
+            entityType: 'delivery',
+            entityId: item.id,
+            eventDate: normalizeDateKey(item.scheduledAt),
+            sourceKey
+          });
+        } else {
+          await updateByPath('notifications', existing.id, {
+            message: `Entrega de ${item.customerName || 'cliente'} aguardando ação.`,
+            deleted: false
+          });
+        }
+      } else if (existing) {
+        await updateByPath('notifications', existing.id, {
+          deleted: true
         });
       }
     }
+  }
 
-    for (const item of products) {
-      if (item.deleted === true) continue;
-
-      if (Number(item.quantity || 0) <= lowStockThreshold) {
-        await createNotification({
-          type: 'low_stock',
-          category: 'estoque',
-          title: 'Estoque baixo',
-          message: `${item.name || 'Produto'} com estoque em ${Number(item.quantity || 0)}.`,
-          entityType: 'product',
-          entityId: item.id,
-          eventDate: normalizeDateKey(item.updatedAt || item.createdAt),
-          sourceKey: `low_stock_${item.id}`
-        });
-      }
-    }
+  async function syncReceivableNotifications() {
+    const receivables = state.accountsReceivable || [];
+    const existingNotifications = getRows().filter(
+      (item) => item.type === 'receivable_due' && item.deleted !== true
+    );
 
     for (const item of receivables) {
-      if (item.deleted === true || Number(item.openAmount || 0) <= 0 || !item.dueDate) continue;
+      if (!item || item.deleted === true) continue;
 
-      await createNotification({
-        type: 'receivable_due',
-        category: 'contas',
-        title: 'Conta a receber pendente',
-        message: `${item.clientName || 'Cliente'} · vencimento ${item.dueDate}.`,
-        entityType: 'account_receivable',
-        entityId: item.id,
-        eventDate: item.dueDate,
-        sourceKey: `receivable_due_${item.id}`
-      });
+      const sourceKey = `receivable_due_${item.id}`;
+      const existing = existingNotifications.find((row) => row.sourceKey === sourceKey);
+      const openAmount = Number(item.openAmount || 0);
+      const shouldExist = openAmount > 0 && !!item.dueDate;
+
+      if (shouldExist) {
+        if (!existing) {
+          await createNotification({
+            type: 'receivable_due',
+            category: 'contas',
+            title: 'Conta a receber pendente',
+            message: `${item.clientName || 'Cliente'} · vencimento ${item.dueDate}.`,
+            entityType: 'account_receivable',
+            entityId: item.id,
+            eventDate: item.dueDate,
+            sourceKey
+          });
+        } else {
+          await updateByPath('notifications', existing.id, {
+            message: `${item.clientName || 'Cliente'} · vencimento ${item.dueDate}.`,
+            deleted: false
+          });
+        }
+      } else if (existing) {
+        await updateByPath('notifications', existing.id, {
+          deleted: true
+        });
+      }
     }
+  }
+
+  async function syncPayableNotifications() {
+    const payables = state.accountsPayable || [];
+    const existingNotifications = getRows().filter(
+      (item) => item.type === 'payable_due' && item.deleted !== true
+    );
 
     for (const item of payables) {
-      if (item.deleted === true || Number(item.openAmount || 0) <= 0 || !item.dueDate) continue;
+      if (!item || item.deleted === true) continue;
 
-      await createNotification({
-        type: 'payable_due',
-        category: 'contas',
-        title: 'Conta a pagar pendente',
-        message: `${item.supplierName || 'Fornecedor'} · vencimento ${item.dueDate}.`,
-        entityType: 'account_payable',
-        entityId: item.id,
-        eventDate: item.dueDate,
-        sourceKey: `payable_due_${item.id}`
-      });
+      const sourceKey = `payable_due_${item.id}`;
+      const existing = existingNotifications.find((row) => row.sourceKey === sourceKey);
+      const openAmount = Number(item.openAmount || 0);
+      const shouldExist = openAmount > 0 && !!item.dueDate;
+
+      if (shouldExist) {
+        if (!existing) {
+          await createNotification({
+            type: 'payable_due',
+            category: 'contas',
+            title: 'Conta a pagar pendente',
+            message: `${item.supplierName || 'Fornecedor'} · vencimento ${item.dueDate}.`,
+            entityType: 'account_payable',
+            entityId: item.id,
+            eventDate: item.dueDate,
+            sourceKey
+          });
+        } else {
+          await updateByPath('notifications', existing.id, {
+            message: `${item.supplierName || 'Fornecedor'} · vencimento ${item.dueDate}.`,
+            deleted: false
+          });
+        }
+      } else if (existing) {
+        await updateByPath('notifications', existing.id, {
+          deleted: true
+        });
+      }
+    }
+  }
+
+  async function generateSystemNotifications() {
+    if (isSyncingNotifications) return;
+    isSyncingNotifications = true;
+
+    try {
+      await syncDeliveryNotifications();
+      await syncLowStockNotifications();
+      await syncReceivableNotifications();
+      await syncPayableNotifications();
+    } catch (error) {
+      console.error('Erro ao sincronizar notificações:', error);
+    } finally {
+      isSyncingNotifications = false;
     }
   }
 
