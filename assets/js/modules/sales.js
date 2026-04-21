@@ -36,6 +36,13 @@ export function createSalesModule(ctx) {
     notes: ''
   };
 
+  function getCurrentUserMeta() {
+    return {
+      uid: String(state.currentUser?.uid || ''),
+      name: String(state.currentUser?.fullName || '')
+    };
+  }
+
   function focusSearchInput() {
     const input = tabEls.sales?.querySelector('#sale-product-search');
     if (input) {
@@ -148,6 +155,10 @@ export function createSalesModule(ctx) {
           }))
         : []
     };
+  }
+
+  function getSaleVersion(sale) {
+    return Number(sale?.version || 0);
   }
 
   function addProductToCart(productId) {
@@ -385,6 +396,92 @@ export function createSalesModule(ctx) {
         quantity: nextStock
       });
     }
+  }
+
+  function openSaleDetailsModal(saleId) {
+    const sale = (state.sales || []).find((item) => item.id === saleId);
+    if (!sale) return;
+
+    const modalRoot = document.getElementById('modal-root');
+    if (!modalRoot) return;
+
+    const items = Array.isArray(sale.items) ? sale.items : [];
+
+    modalRoot.innerHTML = `
+      <div class="modal-backdrop" id="sale-details-modal-backdrop">
+        <div class="modal-card" style="max-width:960px;">
+          <div class="section-header">
+            <h2>Detalhes da venda</h2>
+            <button class="btn btn-secondary" type="button" id="sale-details-close-btn">Fechar</button>
+          </div>
+
+          <div class="form-grid">
+            <div><strong>Data</strong><br>${escapeHtml(formatDateTime(sale.createdAt))}</div>
+            <div><strong>Cliente</strong><br>${escapeHtml(sale.customerName || 'Não identificado')}</div>
+            <div><strong>CPF</strong><br>${escapeHtml(sale.customerCpf || '-')}</div>
+            <div><strong>Pagamento</strong><br>${escapeHtml(sale.paymentMethod || '-')}</div>
+            <div><strong>Operador</strong><br>${escapeHtml(sale.cashierName || '-')}</div>
+            <div><strong>Versão</strong><br>${getSaleVersion(sale)}</div>
+          </div>
+
+          <div class="summary-box" style="margin-top:16px;">
+            <div class="summary-line"><span>Subtotal</span><strong>${currency(sale.subtotal || 0)}</strong></div>
+            <div class="summary-line"><span>Desconto</span><strong>${currency(sale.discount || 0)}</strong></div>
+            <div class="summary-line total"><span>Total</span><strong>${currency(sale.total || 0)}</strong></div>
+            <div class="summary-line"><span>Valor pago</span><strong>${currency(sale.amountPaid || 0)}</strong></div>
+            <div class="summary-line"><span>Troco</span><strong>${currency(sale.change || 0)}</strong></div>
+          </div>
+
+          <div style="margin-top:16px;">
+            <strong>Observações</strong>
+            <div class="empty-state" style="text-align:left; margin-top:8px;">
+              <span>${escapeHtml(sale.notes || 'Sem observações.')}</span>
+            </div>
+          </div>
+
+          <div style="margin-top:16px;">
+            <strong>Itens</strong>
+            <div class="table-wrap" style="margin-top:8px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th>Qtd</th>
+                    <th>Unitário</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${
+                    items.map((item) => `
+                      <tr>
+                        <td>${escapeHtml(item.name || '-')}</td>
+                        <td>${Number(item.quantity || 0)}</td>
+                        <td>${currency(item.unitPrice || 0)}</td>
+                        <td>${currency(item.total || 0)}</td>
+                      </tr>
+                    `).join('') || `
+                      <tr>
+                        <td colspan="4">Nenhum item registrado.</td>
+                      </tr>
+                    `
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const closeModal = () => {
+      modalRoot.innerHTML = '';
+    };
+
+    modalRoot.querySelector('#sale-details-close-btn')?.addEventListener('click', closeModal);
+    modalRoot.querySelector('#sale-details-modal-backdrop')?.addEventListener('click', (event) => {
+      if (event.target.id === 'sale-details-modal-backdrop') closeModal();
+    });
   }
 
   function openEditSaleModal(saleId) {
@@ -687,6 +784,8 @@ export function createSalesModule(ctx) {
       try {
         await applySaleItemsStockDiff(sale.items || [], newItems);
 
+        const currentUser = getCurrentUserMeta();
+
         await updateByPath('sales', sale.id, {
           customerName: String(values.customerName || '').trim() || 'Não identificado',
           customerCpf: String(values.customerCpf || '').trim(),
@@ -697,7 +796,10 @@ export function createSalesModule(ctx) {
           amountPaid,
           change,
           notes: String(values.notes || ''),
-          items: newItems
+          items: newItems,
+          editedAt: new Date().toISOString(),
+          editedBy: currentUser.uid || currentUser.name || '',
+          version: getSaleVersion(sale) + 1
         });
 
         showToast('Venda atualizada com sucesso.', 'success');
@@ -723,24 +825,74 @@ export function createSalesModule(ctx) {
     }
   }
 
-  function deleteSale(saleId) {
+  function openDeleteSaleModal(saleId) {
     const sale = (state.sales || []).find((item) => item.id === saleId && item.deleted !== true);
     if (!sale) return;
 
-    window.openConfirmDeleteModal?.({
-      title: 'Excluir venda',
-      message: 'Deseja realmente excluir esta venda? O estoque dos produtos será devolvido.',
-      confirmLabel: 'Excluir venda',
-      onConfirm: async () => {
-        await restoreSaleItemsToStock(sale);
+    const modalRoot = document.getElementById('modal-root');
+    if (!modalRoot) return;
 
-        await updateByPath('sales', sale.id, {
-          deleted: true,
-          deletedAt: new Date().toISOString()
-        });
+    modalRoot.innerHTML = `
+      <div class="modal-backdrop" id="delete-sale-modal-backdrop">
+        <div class="modal-card">
+          <div class="section-header">
+            <h2>Excluir venda</h2>
+            <button class="btn btn-secondary" type="button" id="delete-sale-close-btn">Fechar</button>
+          </div>
 
-        showToast('Venda excluída e estoque devolvido.', 'success');
+          <div class="empty-state" style="text-align:left;">
+            <strong>Atenção</strong>
+            <span>Ao excluir esta venda, o estoque dos produtos será devolvido.</span>
+          </div>
+
+          <form id="delete-sale-form" class="form-grid" style="margin-top:16px;">
+            <label style="grid-column:1 / -1;">
+              Motivo da exclusão
+              <textarea name="deleteReason" rows="4" placeholder="Informe o motivo" required></textarea>
+            </label>
+
+            <div class="form-actions" style="grid-column:1 / -1;">
+              <button class="btn btn-danger" type="submit">Excluir venda</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    const closeModal = () => {
+      modalRoot.innerHTML = '';
+    };
+
+    modalRoot.querySelector('#delete-sale-close-btn')?.addEventListener('click', closeModal);
+    modalRoot.querySelector('#delete-sale-modal-backdrop')?.addEventListener('click', (event) => {
+      if (event.target.id === 'delete-sale-modal-backdrop') closeModal();
+    });
+
+    modalRoot.querySelector('#delete-sale-form')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const form = event.currentTarget;
+      const values = Object.fromEntries(new FormData(form).entries());
+      const deleteReason = String(values.deleteReason || '').trim();
+
+      if (!deleteReason) {
+        alert('Informe o motivo da exclusão.');
+        return;
       }
+
+      const currentUser = getCurrentUserMeta();
+
+      await restoreSaleItemsToStock(sale);
+
+      await updateByPath('sales', sale.id, {
+        deleted: true,
+        deletedAt: new Date().toISOString(),
+        deletedBy: currentUser.uid || currentUser.name || '',
+        deleteReason
+      });
+
+      showToast('Venda excluída e estoque devolvido.', 'success');
+      closeModal();
     });
   }
 
@@ -773,6 +925,7 @@ export function createSalesModule(ctx) {
         <td>${Array.isArray(sale.items) ? sale.items.length : 0}</td>
         <td>
           <div class="actions-inline-compact">
+            <button class="icon-action-btn" type="button" data-view-sale="${sale.id}" aria-label="Ver">👁️</button>
             <button class="icon-action-btn" type="button" data-print-sale="${sale.id}" aria-label="Imprimir">🖨️</button>
             <button class="icon-action-btn" type="button" data-edit-sale="${sale.id}" aria-label="Editar">✏️</button>
             <button class="icon-action-btn" type="button" data-delete-sale="${sale.id}" aria-label="Excluir">🗑️</button>
@@ -780,6 +933,10 @@ export function createSalesModule(ctx) {
         </td>
       </tr>
     `).join('') || '<tr><td colspan="6">Nenhuma venda encontrada.</td></tr>';
+
+    historyEl.querySelectorAll('[data-view-sale]').forEach((btn) => {
+      btn.addEventListener('click', () => openSaleDetailsModal(btn.dataset.viewSale));
+    });
 
     historyEl.querySelectorAll('[data-print-sale]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -794,7 +951,7 @@ export function createSalesModule(ctx) {
     });
 
     historyEl.querySelectorAll('[data-delete-sale]').forEach((btn) => {
-      btn.addEventListener('click', () => deleteSale(btn.dataset.deleteSale));
+      btn.addEventListener('click', () => openDeleteSaleModal(btn.dataset.deleteSale));
     });
   }
 
@@ -876,7 +1033,8 @@ export function createSalesModule(ctx) {
         notes: saleFormState.notes || '',
         items,
         cashierName: state.currentUser?.fullName || '',
-        deleted: false
+        deleted: false,
+        version: 1
       };
 
       const saleId = await createDoc(refs.sales, payload);
