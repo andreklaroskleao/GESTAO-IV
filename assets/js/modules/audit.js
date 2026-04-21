@@ -1,7 +1,7 @@
 import { escapeHtml } from './ui.js';
 
 export function createAuditModule(ctx) {
-  const { state, formatDateTime } = ctx;
+  const { state, refs, createDoc, formatDateTime } = ctx;
 
   function getRows() {
     return Array.isArray(state.auditLogs) ? state.auditLogs : [];
@@ -92,12 +92,11 @@ export function createAuditModule(ctx) {
     description = '',
     metadata = {}
   } = {}) {
-    const ref = ctx.refs?.auditLogs;
-    if (!ref || !ctx.createDoc) return;
+    if (!refs?.auditLogs || !createDoc) return;
 
     const user = state.currentUser || {};
 
-    await ctx.createDoc(ref, {
+    await createDoc(refs.auditLogs, {
       module: String(module || '').trim(),
       action: String(action || '').trim(),
       entityType: String(entityType || '').trim(),
