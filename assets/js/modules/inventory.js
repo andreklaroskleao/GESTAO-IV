@@ -16,6 +16,14 @@ export function createInventoryModule(ctx) {
     return state.products.find((item) => item.id === productId) || null;
   }
 
+  function getCurrentUserMeta() {
+    return {
+      userId: String(state.currentUser?.uid || ''),
+      userName: String(state.currentUser?.fullName || ''),
+      userEmail: String(state.currentUser?.email || '')
+    };
+  }
+
   async function registerMovement({ productId, type, quantity, reason, notes = '' }) {
     const product = getProductById(productId);
     if (!product) {
@@ -24,9 +32,15 @@ export function createInventoryModule(ctx) {
 
     const qty = Math.max(0, Number(quantity || 0));
     const previousQuantity = Number(product.quantity || 0);
+    const trimmedReason = String(reason || '').trim();
+    const trimmedNotes = String(notes || '').trim();
 
     if (qty <= 0) {
       throw new Error('Informe uma quantidade válida.');
+    }
+
+    if (!trimmedReason) {
+      throw new Error('Informe o motivo da movimentação.');
     }
 
     let newQuantity = previousQuantity;
@@ -44,21 +58,33 @@ export function createInventoryModule(ctx) {
       throw new Error('Tipo de movimentação inválido.');
     }
 
+    const actor = getCurrentUserMeta();
+    const nowIso = new Date().toISOString();
+
     await updateByPath('products', productId, {
-      quantity: newQuantity
+      quantity: newQuantity,
+      lastStockAdjustmentAt: nowIso,
+      lastStockAdjustmentBy: actor.userId || actor.userName || '',
+      lastStockAdjustmentReason: trimmedReason
     });
 
     await createDoc(refs.inventoryMovements, {
       productId: product.id,
       productName: product.name,
+      productBarcode: product.barcode || '',
       type,
       quantity: qty,
       previousQuantity,
       newQuantity,
-      reason: reason || '',
-      notes: notes || '',
-      userId: state.currentUser?.uid || '',
-      userName: state.currentUser?.fullName || '',
+      quantityDelta: newQuantity - previousQuantity,
+      reason: trimmedReason,
+      notes: trimmedNotes,
+      sourceType: 'product_manual_adjustment',
+      sourceId: product.id,
+      userId: actor.userId,
+      userName: actor.userName,
+      userEmail: actor.userEmail,
+      deleted: false,
       createdAt: new Date()
     });
 
@@ -74,8 +100,9 @@ export function createInventoryModule(ctx) {
         quantity: qty,
         previousQuantity,
         newQuantity,
-        reason: reason || '',
-        notes: notes || ''
+        quantityDelta: newQuantity - previousQuantity,
+        reason: trimmedReason,
+        notes: trimmedNotes
       }
     });
 
@@ -86,6 +113,8 @@ export function createInventoryModule(ctx) {
   function getFilteredMovements(filters = {}) {
     return [...(state.inventoryMovements || [])]
       .filter((item) => {
+        if (item.deleted === true) return false;
+
         const productName = String(item.productName || '').toLowerCase();
         const reason = String(item.reason || '').toLowerCase();
         const type = String(item.type || '');
@@ -115,7 +144,7 @@ export function createInventoryModule(ctx) {
     const rows = getFilteredMovements(filters);
 
     return `
-      <div class="table-wrap">
+      <div class="table-wrap scroll-dual">
         <table>
           <thead>
             <tr>
@@ -130,18 +159,24 @@ export function createInventoryModule(ctx) {
             </tr>
           </thead>
           <tbody>
-            ${rows.map((item) => `
-              <tr>
-                <td>${formatDateTime(item.createdAt)}</td>
-                <td>${escapeHtml(item.productName || '-')}</td>
-                <td>${escapeHtml(item.type || '-')}</td>
-                <td>${escapeHtml(String(item.quantity ?? '-'))}</td>
-                <td>${escapeHtml(String(item.previousQuantity ?? '-'))}</td>
-                <td>${escapeHtml(String(item.newQuantity ?? '-'))}</td>
-                <td>${escapeHtml(item.reason || '-')}</td>
-                <td>${escapeHtml(item.userName || '-')}</td>
-              </tr>
-            `).join('') || '<tr><td colspan="8">Nenhuma movimentação encontrada.</td></tr>'}
+            ${
+              rows.map((item) => `
+                <tr>
+                  <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
+                  <td>${escapeHtml(item.productName || '-')}</td>
+                  <td>${escapeHtml(item.type || '-')}</td>
+                  <td>${escapeHtml(String(item.quantity ?? '-'))}</td>
+                  <td>${escapeHtml(String(item.previousQuantity ?? '-'))}</td>
+                  <td>${escapeHtml(String(item.newQuantity ?? '-'))}</td>
+                  <td>${escapeHtml(item.reason || '-')}</td>
+                  <td>${escapeHtml(item.userName || '-')}</td>
+                </tr>
+              `).join('') || `
+                <tr>
+                  <td colspan="8">Nenhuma movimentação encontrada.</td>
+                </tr>
+              `
+            }
           </tbody>
         </table>
       </div>
@@ -160,26 +195,40 @@ export function createInventoryModule(ctx) {
         <div class="modal-card">
           <div class="section-header">
             <h2>Movimentar estoque</h2>
-            <button class="btn btn-secondary" id="inventory-modal-close">Fechar</button>
+            <button class="btn btn-secondary" type="button" id="inventory-modal-close">Fechar</button>
           </div>
 
-          <div class="card" style="margin-bottom:16px;">
+          <div class="empty-state" style="text-align:left;">
             <strong>${escapeHtml(product.name)}</strong>
-            <p class="muted">Estoque atual: ${product.quantity}</p>
-            <p class="muted">Preço de venda: ${currency(product.salePrice || 0)}</p>
+            <span>Estoque atual: ${product.quantity}</span>
+            <span>Preço de venda: ${currency(product.salePrice || 0)}</span>
           </div>
 
-          <form id="inventory-form" class="form-grid">
-            <label>Tipo
+          <form id="inventory-form" class="form-grid" style="margin-top:16px;">
+            <label>
+              Tipo
               <select name="type" required>
                 <option value="entrada">Entrada</option>
                 <option value="saida">Saída</option>
                 <option value="ajuste">Ajuste</option>
               </select>
             </label>
-            <label>Quantidade<input name="quantity" type="number" min="0" step="1" required /></label>
-            <label style="grid-column:1 / -1;">Motivo<input name="reason" placeholder="Ex.: compra, perda, correção, devolução" required /></label>
-            <label style="grid-column:1 / -1;">Observações<textarea name="notes"></textarea></label>
+
+            <label>
+              Quantidade
+              <input name="quantity" type="number" min="0" step="1" required />
+            </label>
+
+            <label style="grid-column:1 / -1;">
+              Motivo
+              <input name="reason" type="text" placeholder="Ex.: conferência, perda, acerto de cadastro" required />
+            </label>
+
+            <label style="grid-column:1 / -1;">
+              Observações
+              <textarea name="notes" rows="3"></textarea>
+            </label>
+
             <div class="form-actions" style="grid-column:1 / -1;">
               <button class="btn btn-primary" type="submit">Salvar movimentação</button>
             </div>
@@ -192,14 +241,14 @@ export function createInventoryModule(ctx) {
       modalRoot.innerHTML = '';
     };
 
-    modalRoot.querySelector('#inventory-modal-close').addEventListener('click', closeModal);
-    modalRoot.querySelector('#inventory-modal-backdrop').addEventListener('click', (event) => {
+    modalRoot.querySelector('#inventory-modal-close')?.addEventListener('click', closeModal);
+    modalRoot.querySelector('#inventory-modal-backdrop')?.addEventListener('click', (event) => {
       if (event.target.id === 'inventory-modal-backdrop') {
         closeModal();
       }
     });
 
-    modalRoot.querySelector('#inventory-form').addEventListener('submit', async (event) => {
+    modalRoot.querySelector('#inventory-form')?.addEventListener('submit', async (event) => {
       event.preventDefault();
 
       try {
