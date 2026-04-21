@@ -319,6 +319,142 @@ export function createSalesModule(ctx) {
     });
   }
 
+  function openEditSaleModal(saleId) {
+    const sale = (state.sales || []).find((item) => item.id === saleId && item.deleted !== true);
+    if (!sale) return;
+
+    const modalRoot = document.getElementById('modal-root');
+    if (!modalRoot) return;
+
+    modalRoot.innerHTML = `
+      <div class="modal-backdrop" id="edit-sale-modal-backdrop">
+        <div class="modal-card">
+          <div class="section-header">
+            <h2>Editar venda</h2>
+            <button class="btn btn-secondary" type="button" id="edit-sale-close-btn">Fechar</button>
+          </div>
+
+          <form id="edit-sale-form" class="form-grid">
+            <label style="grid-column:1 / -1;">
+              Cliente
+              <input name="customerName" type="text" value="${escapeHtml(sale.customerName || '')}" />
+            </label>
+
+            <label style="grid-column:1 / -1;">
+              CPF
+              <input name="customerCpf" type="text" value="${escapeHtml(sale.customerCpf || '')}" />
+            </label>
+
+            <label>
+              Forma de pagamento
+              <select name="paymentMethod">
+                ${paymentMethods.map((method) => `
+                  <option value="${escapeHtml(method)}" ${sale.paymentMethod === method ? 'selected' : ''}>
+                    ${escapeHtml(method)}
+                  </option>
+                `).join('')}
+              </select>
+            </label>
+
+            <label>
+              Desconto
+              <input name="discount" type="number" min="0" step="0.01" value="${Number(sale.discount || 0)}" />
+            </label>
+
+            <label>
+              Valor pago
+              <input name="amountPaid" type="number" min="0" step="0.01" value="${Number(sale.amountPaid || 0)}" />
+            </label>
+
+            <label style="grid-column:1 / -1;">
+              Observações
+              <textarea name="notes">${escapeHtml(sale.notes || '')}</textarea>
+            </label>
+
+            <div class="form-actions" style="grid-column:1 / -1;">
+              <button class="btn btn-primary" type="submit">Salvar alterações</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    const closeModal = () => {
+      modalRoot.innerHTML = '';
+    };
+
+    modalRoot.querySelector('#edit-sale-close-btn')?.addEventListener('click', closeModal);
+    modalRoot.querySelector('#edit-sale-modal-backdrop')?.addEventListener('click', (event) => {
+      if (event.target.id === 'edit-sale-modal-backdrop') closeModal();
+    });
+
+    modalRoot.querySelector('#edit-sale-form')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const form = event.currentTarget;
+      const values = Object.fromEntries(new FormData(form).entries());
+
+      const subtotal = Number(sale.subtotal || 0);
+      const discount = toNumber(values.discount || 0);
+      const total = Math.max(0, subtotal - discount);
+      const amountPaid = toNumber(values.amountPaid || 0);
+      const change = Math.max(0, amountPaid - total);
+
+      if (amountPaid < total) {
+        alert('O valor pago é menor que o total da venda.');
+        return;
+      }
+
+      await updateByPath('sales', sale.id, {
+        customerName: String(values.customerName || '').trim() || 'Não identificado',
+        customerCpf: String(values.customerCpf || '').trim(),
+        paymentMethod: String(values.paymentMethod || 'Dinheiro'),
+        discount,
+        total,
+        amountPaid,
+        change,
+        notes: String(values.notes || '')
+      });
+
+      showToast('Venda atualizada com sucesso.', 'success');
+      closeModal();
+    });
+  }
+
+  async function restoreSaleItemsToStock(sale) {
+    const items = Array.isArray(sale.items) ? sale.items : [];
+
+    for (const item of items) {
+      const product = getProductById(item.productId);
+      if (!product) continue;
+
+      await updateByPath('products', item.productId, {
+        quantity: Number(product.quantity || 0) + Number(item.quantity || 0)
+      });
+    }
+  }
+
+  function deleteSale(saleId) {
+    const sale = (state.sales || []).find((item) => item.id === saleId && item.deleted !== true);
+    if (!sale) return;
+
+    window.openConfirmDeleteModal?.({
+      title: 'Excluir venda',
+      message: 'Deseja realmente excluir esta venda? O estoque dos produtos será devolvido.',
+      confirmLabel: 'Excluir venda',
+      onConfirm: async () => {
+        await restoreSaleItemsToStock(sale);
+
+        await updateByPath('sales', sale.id, {
+          deleted: true,
+          deletedAt: new Date().toISOString()
+        });
+
+        showToast('Venda excluída e estoque devolvido.', 'success');
+      }
+    });
+  }
+
   function renderHistory() {
     const historyEl = tabEls.sales.querySelector('#sales-history-table');
     if (!historyEl) return;
@@ -349,6 +485,8 @@ export function createSalesModule(ctx) {
         <td>
           <div class="actions-inline-compact">
             <button class="icon-action-btn" type="button" data-print-sale="${sale.id}" aria-label="Imprimir">🖨️</button>
+            <button class="icon-action-btn" type="button" data-edit-sale="${sale.id}" aria-label="Editar">✏️</button>
+            <button class="icon-action-btn" type="button" data-delete-sale="${sale.id}" aria-label="Excluir">🗑️</button>
           </div>
         </td>
       </tr>
@@ -360,6 +498,14 @@ export function createSalesModule(ctx) {
         if (!sale) return;
         printModule.printSaleReceipt(normalizeSaleForPrint(sale));
       });
+    });
+
+    historyEl.querySelectorAll('[data-edit-sale]').forEach((btn) => {
+      btn.addEventListener('click', () => openEditSaleModal(btn.dataset.editSale));
+    });
+
+    historyEl.querySelectorAll('[data-delete-sale]').forEach((btn) => {
+      btn.addEventListener('click', () => deleteSale(btn.dataset.deleteSale));
     });
   }
 
