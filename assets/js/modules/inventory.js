@@ -13,7 +13,7 @@ export function createInventoryModule(ctx) {
   } = ctx;
 
   function getProductById(productId) {
-    return state.products.find((item) => item.id === productId) || null;
+    return (state.products || []).find((item) => item.id === productId) || null;
   }
 
   function getCurrentUserMeta() {
