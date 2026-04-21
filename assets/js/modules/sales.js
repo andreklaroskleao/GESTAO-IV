@@ -59,6 +59,14 @@ export function createSalesModule(ctx) {
     return (state.cart || []).find((item) => item.id === productId) || null;
   }
 
+  function getSelectedClientCpf() {
+    return String(
+      state.selectedSaleClient?.cpf ||
+      state.selectedSaleClient?.document ||
+      ''
+    ).trim();
+  }
+
   function clearCartWithFeedback() {
     state.cart = [];
     render();
@@ -333,6 +341,11 @@ export function createSalesModule(ctx) {
     const sync = () => {
       const checked = checkbox.checked;
       wrap.style.display = checked ? '' : 'none';
+
+      if (checked && !String(input.value || '').trim()) {
+        input.value = getSelectedClientCpf();
+      }
+
       if (!checked) input.value = '';
     };
 
@@ -355,8 +368,18 @@ export function createSalesModule(ctx) {
       const customerNameRaw = tabEls.sales.querySelector('#sale-customer-name')?.value || '';
       const includeCpf = Boolean(tabEls.sales.querySelector('#sale-include-cpf')?.checked);
       const customerCpfRaw = tabEls.sales.querySelector('#sale-customer-cpf')?.value || '';
-      const customerName = String(customerNameRaw).trim() || 'Não identificado';
-      const customerCpf = includeCpf ? String(customerCpfRaw).trim() : '';
+
+      const selectedClientName = String(state.selectedSaleClient?.name || '').trim();
+      const selectedClientCpf = getSelectedClientCpf();
+
+      const typedCustomerName = String(customerNameRaw).trim();
+      const typedCustomerCpf = String(customerCpfRaw).trim();
+
+      const customerName =
+        typedCustomerName || selectedClientName || 'Não identificado';
+
+      const customerCpf = includeCpf ? (typedCustomerCpf || selectedClientCpf) : '';
+
       const { subtotal, discount, total, amountPaid, change } = calculateCartTotal();
 
       if (amountPaid < total) {
@@ -378,6 +401,7 @@ export function createSalesModule(ctx) {
       const payload = {
         customerName,
         customerCpf,
+        customerId: state.selectedSaleClient?.id || '',
         paymentMethod,
         subtotal,
         discount,
@@ -409,6 +433,7 @@ export function createSalesModule(ctx) {
       });
 
       state.cart = [];
+      state.selectedSaleClient = null;
       searchTerm = '';
 
       const searchInput = tabEls.sales.querySelector('#sale-product-search');
@@ -475,8 +500,18 @@ export function createSalesModule(ctx) {
     clientsModule.renderClientPicker?.({
       target: '#sale-client-picker-host',
       onSelect: (client) => {
+        state.selectedSaleClient = client || null;
+
         const input = tabEls.sales.querySelector('#sale-customer-name');
-        if (input) input.value = client.name || '';
+        const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
+        const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
+
+        if (input) input.value = client?.name || '';
+
+        if (cpfCheck?.checked && cpfInput) {
+          cpfInput.value = String(client?.cpf || client?.document || '').trim();
+        }
+
         closeModal();
       }
     });
@@ -513,7 +548,7 @@ export function createSalesModule(ctx) {
             <div class="form-grid" style="margin-bottom:14px;">
               <label style="grid-column:1 / -1;">
                 Cliente
-                <input id="sale-customer-name" type="text" value="" placeholder="Deixe em branco para não identificado" />
+                <input id="sale-customer-name" type="text" value="${escapeHtml(state.selectedSaleClient?.name || '')}" placeholder="Deixe em branco para não identificado" />
               </label>
 
               <label style="grid-column:1 / -1; display:flex; align-items:center; gap:8px;">
@@ -635,6 +670,8 @@ export function createSalesModule(ctx) {
     }, { busyLabel: 'Abrindo...' });
 
     bindAsyncButton(tabEls.sales.querySelector('#sale-clear-client-btn'), async () => {
+      state.selectedSaleClient = null;
+
       const clientInput = tabEls.sales.querySelector('#sale-customer-name');
       const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
       const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
