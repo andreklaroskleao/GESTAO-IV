@@ -64,7 +64,10 @@ export function createSalesModule(ctx) {
   function getProductByBarcode(barcode) {
     const value = String(barcode || '').trim();
     if (!value) return null;
-    return getActiveProducts().find((item) => String(item.barcode || '').trim() === value) || null;
+
+    return getActiveProducts().find((item) => {
+      return String(item.barcode || '').trim() === value;
+    }) || null;
   }
 
   function getAvailableStock(productId) {
@@ -126,11 +129,17 @@ export function createSalesModule(ctx) {
 
     const { subtotal, discount, total, change } = calculateCartTotal();
 
-    tabEls.sales.querySelector('#sale-subtotal').textContent = currency(subtotal);
-    tabEls.sales.querySelector('#sale-discount-view').textContent = currency(discount);
-    tabEls.sales.querySelector('#sale-total').textContent = currency(total);
-    tabEls.sales.querySelector('#sale-change').textContent = currency(change);
-    tabEls.sales.querySelector('#sale-items-count').textContent = String((state.cart || []).length);
+    const subtotalEl = tabEls.sales.querySelector('#sale-subtotal');
+    const discountEl = tabEls.sales.querySelector('#sale-discount-view');
+    const totalEl = tabEls.sales.querySelector('#sale-total');
+    const changeEl = tabEls.sales.querySelector('#sale-change');
+    const itemsCountEl = tabEls.sales.querySelector('#sale-items-count');
+
+    if (subtotalEl) subtotalEl.textContent = currency(subtotal);
+    if (discountEl) discountEl.textContent = currency(discount);
+    if (totalEl) totalEl.textContent = currency(total);
+    if (changeEl) changeEl.textContent = currency(change);
+    if (itemsCountEl) itemsCountEl.textContent = String((state.cart || []).length);
   }
 
   function normalizeSaleForPrint(sale) {
@@ -1124,6 +1133,7 @@ export function createSalesModule(ctx) {
       onSelect: (client) => {
         state.selectedSaleClient = client || null;
         saleFormState.customerName = client?.name || saleFormState.customerName || '';
+
         if (saleFormState.includeCpf) {
           saleFormState.customerCpf = String(client?.cpf || client?.document || '').trim();
         }
