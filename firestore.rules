@@ -1,7 +1,7 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
     function signedIn() {
       return request.auth != null;
     }
@@ -11,7 +11,8 @@ service cloud.firestore {
     }
 
     function userExists() {
-      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
     function userData() {
@@ -19,32 +20,40 @@ service cloud.firestore {
     }
 
     function isActiveUser() {
-      return userExists() && userData().active == true && userData().deleted != true;
+      return userExists() &&
+        userData().active == true &&
+        userData().deleted != true;
     }
 
     function isMaster() {
-      return isActiveUser() && userData().accessLevel == "master";
+      return isActiveUser() &&
+        userData().accessLevel == "master";
     }
 
     function isAdmin() {
       return isActiveUser() &&
-        (userData().accessLevel == "master" || userData().accessLevel == "admin");
+        (
+          userData().accessLevel == "master" ||
+          userData().accessLevel == "admin"
+        );
     }
 
     function isManager() {
-      return isActiveUser() && (
-        userData().accessLevel == "master" ||
-        userData().accessLevel == "admin" ||
-        userData().accessLevel == "manager"
-      );
+      return isActiveUser() &&
+        (
+          userData().accessLevel == "master" ||
+          userData().accessLevel == "admin" ||
+          userData().accessLevel == "manager"
+        );
     }
 
     function hasArea(area) {
-      return isActiveUser() && (
-        userData().accessLevel == "master" ||
-        userData().accessLevel == "admin" ||
-        (userData().permissions is list && area in userData().permissions)
-      );
+      return isActiveUser() &&
+        (
+          userData().accessLevel == "master" ||
+          userData().accessLevel == "admin" ||
+          (userData().permissions is list && area in userData().permissions)
+        );
     }
 
     function isSelf(userId) {
@@ -68,22 +77,26 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAdmin() || (isSelf(userId) && isActiveUser());
+
       allow create: if isAdmin() && validUserWrite();
+
       allow update: if (
-        isAdmin() ||
-        (
-          isSelf(userId) &&
-          isActiveUser() &&
-          request.resource.data.fullName == resource.data.fullName &&
-          request.resource.data.username == resource.data.username &&
-          request.resource.data.email == resource.data.email &&
-          request.resource.data.role == resource.data.role &&
-          request.resource.data.accessLevel == resource.data.accessLevel &&
-          request.resource.data.permissions == resource.data.permissions &&
-          request.resource.data.active == resource.data.active &&
-          request.resource.data.deleted == resource.data.deleted
-        )
-      ) && validUserWrite();
+          isAdmin() ||
+          (
+            isSelf(userId) &&
+            isActiveUser() &&
+            request.resource.data.fullName == resource.data.fullName &&
+            request.resource.data.username == resource.data.username &&
+            request.resource.data.email == resource.data.email &&
+            request.resource.data.role == resource.data.role &&
+            request.resource.data.accessLevel == resource.data.accessLevel &&
+            request.resource.data.permissions == resource.data.permissions &&
+            request.resource.data.active == resource.data.active &&
+            request.resource.data.deleted == resource.data.deleted
+          )
+        ) &&
+        validUserWrite();
+
       allow delete: if isMaster();
     }
 
