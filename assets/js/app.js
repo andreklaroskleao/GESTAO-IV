@@ -106,6 +106,8 @@ const state = {
   clients: [],
   suppliers: [],
   notifications: [],
+  readEphemeralNotifications: [],
+  selectedSaleClient: null,
   inventoryMovements: [],
   auditLogs: [],
   cashSessions: [],
@@ -543,6 +545,8 @@ function resetAppState() {
   state.clients = [];
   state.suppliers = [];
   state.notifications = [];
+  state.readEphemeralNotifications = [];
+  state.selectedSaleClient = null;
   state.inventoryMovements = [];
   state.auditLogs = [];
   state.cashSessions = [];
@@ -858,7 +862,9 @@ function openActionsSheet(title, actions = []) {
 
   closeActionsSheet();
 
-  root.insertAdjacentHTML('beforeend', `
+  root.insertAdjacentHTML(
+    'beforeend',
+    `
     <div class="actions-sheet-backdrop" id="global-actions-sheet-backdrop">
       <div class="actions-sheet">
         <div class="actions-sheet-header">
@@ -868,7 +874,8 @@ function openActionsSheet(title, actions = []) {
         <div class="actions-sheet-actions" id="global-actions-sheet-actions"></div>
       </div>
     </div>
-  `);
+  `
+  );
 
   const backdrop = document.getElementById('global-actions-sheet-backdrop');
   const actionsHost = document.getElementById('global-actions-sheet-actions');
@@ -949,55 +956,66 @@ function openConfirmDeleteModal({
 function buildGlobalSearchIndex() {
   const entries = [];
 
-  (state.products || []).filter((item) => item.deleted !== true).forEach((item) => {
-    entries.push({
-      type: 'product',
-      label: item.name || 'Produto',
-      subtitle: `${item.barcode || 'Sem código'} · ${item.brand || 'Sem marca'}`,
-      tab: 'products',
-      search: [item.name, item.barcode, item.brand, item.supplier].join(' ').toLowerCase()
+  (state.products || [])
+    .filter((item) => item.deleted !== true)
+    .forEach((item) => {
+      entries.push({
+        type: 'product',
+        label: item.name || 'Produto',
+        subtitle: `${item.barcode || 'Sem código'} · ${item.brand || 'Sem marca'}`,
+        tab: 'products',
+        search: [item.name, item.barcode, item.brand, item.supplier].join(' ').toLowerCase()
+      });
     });
-  });
 
-  (state.clients || []).filter((item) => item.deleted !== true).forEach((item) => {
-    entries.push({
-      type: 'client',
-      label: item.name || 'Cliente',
-      subtitle: `${item.phone || 'Sem telefone'} · ${item.email || 'Sem e-mail'}`,
-      tab: 'clients',
-      search: [item.name, item.phone, item.email, item.address].join(' ').toLowerCase()
+  (state.clients || [])
+    .filter((item) => item.deleted !== true)
+    .forEach((item) => {
+      entries.push({
+        type: 'client',
+        label: item.name || 'Cliente',
+        subtitle: `${item.phone || 'Sem telefone'} · ${item.email || 'Sem e-mail'}`,
+        tab: 'clients',
+        search: [item.name, item.phone, item.email, item.address].join(' ').toLowerCase()
+      });
     });
-  });
 
-  (state.suppliers || []).filter((item) => item.deleted !== true).forEach((item) => {
-    entries.push({
-      type: 'supplier',
-      label: item.name || 'Fornecedor',
-      subtitle: `${item.phone || 'Sem telefone'} · ${item.email || 'Sem e-mail'}`,
-      tab: 'suppliers',
-      search: [item.name, item.contactName, item.phone, item.email, item.document].join(' ').toLowerCase()
+  (state.suppliers || [])
+    .filter((item) => item.deleted !== true)
+    .forEach((item) => {
+      entries.push({
+        type: 'supplier',
+        label: item.name || 'Fornecedor',
+        subtitle: `${item.phone || 'Sem telefone'} · ${item.email || 'Sem e-mail'}`,
+        tab: 'suppliers',
+        search: [item.name, item.contactName, item.phone, item.email, item.document].join(' ').toLowerCase()
+      });
     });
-  });
 
-  (state.sales || []).filter((item) => item.deleted !== true).slice(0, 100).forEach((item) => {
-    entries.push({
-      type: 'sale',
-      label: item.customerName || 'Venda balcão',
-      subtitle: `${currency(item.total || 0)} · ${formatDateTime(item.createdAt)}`,
-      tab: 'sales',
-      search: [item.customerName, item.paymentMethod, item.cashierName].join(' ').toLowerCase()
+  (state.sales || [])
+    .filter((item) => item.deleted !== true)
+    .slice(0, 100)
+    .forEach((item) => {
+      entries.push({
+        type: 'sale',
+        label: item.customerName || 'Venda balcão',
+        subtitle: `${currency(item.total || 0)} · ${formatDateTime(item.createdAt)}`,
+        tab: 'sales',
+        search: [item.customerName, item.paymentMethod, item.cashierName].join(' ').toLowerCase()
+      });
     });
-  });
 
-  (state.deliveries || []).filter((item) => item.deleted !== true).forEach((item) => {
-    entries.push({
-      type: 'delivery',
-      label: item.customerName || 'Entrega',
-      subtitle: `${item.phone || 'Sem telefone'} · ${item.status || 'Sem status'}`,
-      tab: 'deliveries',
-      search: [item.customerName, item.phone, item.address, item.status].join(' ').toLowerCase()
+  (state.deliveries || [])
+    .filter((item) => item.deleted !== true)
+    .forEach((item) => {
+      entries.push({
+        type: 'delivery',
+        label: item.customerName || 'Entrega',
+        subtitle: `${item.phone || 'Sem telefone'} · ${item.status || 'Sem status'}`,
+        tab: 'deliveries',
+        search: [item.customerName, item.phone, item.address, item.status].join(' ').toLowerCase()
+      });
     });
-  });
 
   return entries;
 }
@@ -1030,12 +1048,18 @@ function performGlobalSearch(rawTerm) {
         </div>
 
         <div class="stack-list">
-          ${results.map((item) => `
+          ${
+            results
+              .map(
+                (item) => `
             <button class="list-item search-result-item" type="button" data-search-go-tab="${item.tab}">
               <strong>${item.label}</strong>
               <span>${item.subtitle}</span>
             </button>
-          `).join('') || '<div class="empty-state">Nenhum resultado encontrado.</div>'}
+          `
+              )
+              .join('') || '<div class="empty-state">Nenhum resultado encontrado.</div>'
+          }
         </div>
       </div>
     </div>
