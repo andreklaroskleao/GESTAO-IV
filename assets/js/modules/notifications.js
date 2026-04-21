@@ -5,9 +5,7 @@ export function createNotificationsModule(ctx) {
     state,
     refs,
     createDoc,
-    updateByPath,
-    listCollection,
-    tabEls
+    updateByPath
   } = ctx;
 
   let filters = {
@@ -130,6 +128,21 @@ export function createNotificationsModule(ctx) {
     badge.textContent = String(getUnreadRows().length);
   }
 
+  function formatNotificationDate(value) {
+    if (!value) return '-';
+
+    if (value?.toDate && typeof value.toDate === 'function') {
+      return value.toDate().toLocaleString('pt-BR');
+    }
+
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toLocaleString('pt-BR');
+    }
+
+    return String(value);
+  }
+
   function renderList(rows) {
     if (!rows.length) {
       return `
@@ -157,21 +170,6 @@ export function createNotificationsModule(ctx) {
         `).join('')}
       </div>
     `;
-  }
-
-  function formatNotificationDate(value) {
-    if (!value) return '-';
-
-    if (value?.toDate && typeof value.toDate === 'function') {
-      return value.toDate().toLocaleString('pt-BR');
-    }
-
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toLocaleString('pt-BR');
-    }
-
-    return String(value);
   }
 
   function openNotificationsModal() {
