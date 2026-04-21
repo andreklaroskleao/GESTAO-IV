@@ -2299,3 +2299,44 @@ body.theme-light #tab-sales option {
   margin: 0 4px;
   font-weight: 700;
 }
+#notifications-bell-btn {
+  position: relative;
+}
+
+#notifications-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.notifications-modal-card {
+  width: min(96vw, 1100px);
+  max-width: min(96vw, 1100px);
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.notification-row {
+  gap: 8px;
+}
+
+.notification-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.notification-row.is-read {
+  opacity: .78;
+}
