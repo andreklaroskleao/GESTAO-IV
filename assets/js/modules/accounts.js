@@ -608,8 +608,8 @@ export function createAccountsModule(ctx) {
         modalRoot.innerHTML = '';
       };
 
-      modalRoot.querySelector('#account-client-modal-close').addEventListener('click', closeModal);
-      modalRoot.querySelector('#account-client-modal-backdrop').addEventListener('click', (event) => {
+      modalRoot.querySelector('#account-client-modal-close')?.addEventListener('click', closeModal);
+      modalRoot.querySelector('#account-client-modal-backdrop')?.addEventListener('click', (event) => {
         if (event.target.id === 'account-client-modal-backdrop') {
           closeModal();
         }
