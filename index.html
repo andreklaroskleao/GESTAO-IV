@@ -15,8 +15,11 @@
     <title>Gestao III</title>
 
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./assets/img/icon-192.png" />
-    <link rel="apple-touch-icon" href="./assets/img/icon-192.png" />
+    <link rel="icon" href="./favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./assets/img/icon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="./assets/img/icon-64.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/img/apple-touch-icon.png" />
+    <link rel="mask-icon" href="./assets/img/icon-maskable-512.png" color="#1d4ed8" />
     <link rel="stylesheet" href="./assets/css/style.css" />
 
     <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js" defer></script>
@@ -165,7 +168,25 @@
               </button>
 
               <div class="alerts-wrapper">
-                <button id="stock-alert-btn" class="icon-btn" type="button" aria-label="Alertas" title="Alertas">
+                <button
+                  id="notifications-bell-btn"
+                  class="icon-btn"
+                  type="button"
+                  aria-label="Notificações"
+                  title="Notificações"
+                >
+                  🔔
+                  <span id="notifications-badge" class="badge-counter">0</span>
+                </button>
+
+                <!-- legado: manter oculto para não quebrar compatibilidade -->
+                <button
+                  id="stock-alert-btn"
+                  class="icon-btn hidden"
+                  type="button"
+                  aria-label="Alertas antigos"
+                  title="Alertas antigos"
+                >
                   🔔
                   <span id="stock-alert-count" class="badge-counter">0</span>
                 </button>
