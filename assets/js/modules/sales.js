@@ -15,7 +15,13 @@ export function createSalesModule(ctx) {
     printModule
   } = ctx;
 
-  let saleFilters = { customer: '', paymentMethod: '', dateFrom: '', dateTo: '' };
+  let saleFilters = {
+    customer: '',
+    paymentMethod: '',
+    dateFrom: '',
+    dateTo: ''
+  };
+
   let keyboardBound = false;
   let isFinishingSale = false;
   let searchTerm = '';
@@ -29,7 +35,9 @@ export function createSalesModule(ctx) {
   }
 
   function getActiveProducts() {
-    return (state.products || []).filter((item) => item.deleted !== true && item.status !== 'inativo');
+    return (state.products || []).filter((item) =>
+      item.deleted !== true && item.status !== 'inativo'
+    );
   }
 
   function getProductById(productId) {
@@ -76,17 +84,11 @@ export function createSalesModule(ctx) {
   function updateSaleSummary() {
     const { subtotal, discount, total, change } = calculateCartTotal();
 
-    const subtotalEl = tabEls.sales.querySelector('#sale-subtotal');
-    const discountEl = tabEls.sales.querySelector('#sale-discount-view');
-    const totalEl = tabEls.sales.querySelector('#sale-total');
-    const changeEl = tabEls.sales.querySelector('#sale-change');
-    const itemsCountEl = tabEls.sales.querySelector('#sale-items-count');
-
-    if (subtotalEl) subtotalEl.textContent = currency(subtotal);
-    if (discountEl) discountEl.textContent = currency(discount);
-    if (totalEl) totalEl.textContent = currency(total);
-    if (changeEl) changeEl.textContent = currency(change);
-    if (itemsCountEl) itemsCountEl.textContent = String((state.cart || []).length);
+    tabEls.sales.querySelector('#sale-subtotal').textContent = currency(subtotal);
+    tabEls.sales.querySelector('#sale-discount-view').textContent = currency(discount);
+    tabEls.sales.querySelector('#sale-total').textContent = currency(total);
+    tabEls.sales.querySelector('#sale-change').textContent = currency(change);
+    tabEls.sales.querySelector('#sale-items-count').textContent = String((state.cart || []).length);
   }
 
   function normalizeSaleForPrint(sale) {
@@ -208,28 +210,20 @@ export function createSalesModule(ctx) {
       )
       .slice(0, 8);
 
-    resultsEl.innerHTML =
-      results
-        .map(
-          (product) => `
-            <div class="list-item">
-              <strong>${escapeHtml(product.name)}</strong>
-              <span>${escapeHtml(product.barcode || 'Sem código')} · Estoque: ${product.quantity} · ${currency(product.salePrice || 0)}</span>
-              <div class="form-actions">
-                <button class="btn btn-secondary" type="button" data-add-product="${product.id}">
-                  Adicionar
-                </button>
-              </div>
-            </div>
-          `
-        )
-        .join('') ||
-      `
-        <div class="empty-state">
-          <strong>Nenhum produto encontrado</strong>
-          <span>Refine sua pesquisa.</span>
+    resultsEl.innerHTML = results.map((product) => `
+      <div class="list-item">
+        <strong>${escapeHtml(product.name)}</strong>
+        <span>${escapeHtml(product.barcode || 'Sem código')} · Estoque: ${product.quantity} · ${currency(product.salePrice || 0)}</span>
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="button" data-add-product="${product.id}">Adicionar</button>
         </div>
-      `;
+      </div>
+    `).join('') || `
+      <div class="empty-state">
+        <strong>Nenhum produto encontrado</strong>
+        <span>Refine sua pesquisa.</span>
+      </div>
+    `;
 
     resultsEl.querySelectorAll('[data-add-product]').forEach((btn) => {
       btn.addEventListener('click', () => addProductToCart(btn.dataset.addProduct));
@@ -250,22 +244,24 @@ export function createSalesModule(ctx) {
       return;
     }
 
-    cartEl.innerHTML = state.cart
-      .map(
-        (item) => `
-          <div class="list-item">
-            <strong>${escapeHtml(item.name)}</strong>
-            <span>${currency(Number(item.salePrice || 0))}</span>
-            <div class="form-actions">
-              <button class="btn btn-secondary" type="button" data-cart-decrease="${item.id}">−</button>
-              <span>${Number(item.quantity || 0)}</span>
-              <button class="btn btn-secondary" type="button" data-cart-increase="${item.id}">+</button>
-              <button class="btn btn-secondary" type="button" data-cart-remove="${item.id}">🗑️</button>
-            </div>
+    cartEl.innerHTML = state.cart.map((item) => `
+      <div class="cart-item">
+        <div class="cart-line">
+          <strong>${escapeHtml(item.name)}</strong>
+          <span>${currency(Number(item.salePrice || 0))}</span>
+        </div>
+
+        <div class="cart-line">
+          <div class="cart-actions">
+            <button class="icon-action-btn" type="button" data-cart-decrease="${item.id}" aria-label="Diminuir">−</button>
+            <strong>${Number(item.quantity || 0)}</strong>
+            <button class="icon-action-btn" type="button" data-cart-increase="${item.id}" aria-label="Aumentar">+</button>
           </div>
-        `
-      )
-      .join('');
+
+          <button class="icon-action-btn" type="button" data-cart-remove="${item.id}" aria-label="Remover">🗑️</button>
+        </div>
+      </div>
+    `).join('');
 
     cartEl.querySelectorAll('[data-cart-decrease]').forEach((btn) => {
       btn.addEventListener('click', () => changeCartQuantity(btn.dataset.cartDecrease, -1));
@@ -297,31 +293,26 @@ export function createSalesModule(ctx) {
         ? ''
         : `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')}`;
 
-      return (
-        (!saleFilters.customer || customer.includes(saleFilters.customer.toLowerCase())) &&
-        (!saleFilters.paymentMethod || paymentMethod === saleFilters.paymentMethod) &&
-        (!saleFilters.dateFrom || !createdKey || createdKey >= saleFilters.dateFrom) &&
-        (!saleFilters.dateTo || !createdKey || createdKey <= saleFilters.dateTo)
-      );
+      return (!saleFilters.customer || customer.includes(saleFilters.customer.toLowerCase()))
+        && (!saleFilters.paymentMethod || paymentMethod === saleFilters.paymentMethod)
+        && (!saleFilters.dateFrom || !createdKey || createdKey >= saleFilters.dateFrom)
+        && (!saleFilters.dateTo || !createdKey || createdKey <= saleFilters.dateTo);
     });
 
-    historyEl.innerHTML =
-      rows
-        .map(
-          (sale) => `
-            <tr>
-              <td>${escapeHtml(formatDateTime(sale.createdAt))}</td>
-              <td>${escapeHtml(sale.customerName || 'Balcão')}</td>
-              <td>${escapeHtml(sale.paymentMethod || '-')}</td>
-              <td>${currency(sale.total || 0)}</td>
-              <td>${Array.isArray(sale.items) ? sale.items.length : 0}</td>
-              <td>
-                <button class="btn btn-secondary" type="button" data-print-sale="${sale.id}">🖨️</button>
-              </td>
-            </tr>
-          `
-        )
-        .join('') || 'Nenhuma venda encontrada.';
+    historyEl.innerHTML = rows.map((sale) => `
+      <tr>
+        <td>${escapeHtml(formatDateTime(sale.createdAt))}</td>
+        <td>${escapeHtml(sale.customerName || 'Não identificado')}</td>
+        <td>${escapeHtml(sale.paymentMethod || '-')}</td>
+        <td>${currency(sale.total || 0)}</td>
+        <td>${Array.isArray(sale.items) ? sale.items.length : 0}</td>
+        <td>
+          <div class="actions-inline-compact">
+            <button class="icon-action-btn" type="button" data-print-sale="${sale.id}" aria-label="Imprimir">🖨️</button>
+          </div>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="6">Nenhuma venda encontrada.</td></tr>';
 
     historyEl.querySelectorAll('[data-print-sale]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -336,16 +327,12 @@ export function createSalesModule(ctx) {
     const checkbox = tabEls.sales.querySelector('#sale-include-cpf');
     const wrap = tabEls.sales.querySelector('#sale-cpf-wrap');
     const input = tabEls.sales.querySelector('#sale-customer-cpf');
+
     if (!checkbox || !wrap || !input) return;
 
     const sync = () => {
       const checked = checkbox.checked;
       wrap.style.display = checked ? '' : 'none';
-
-      if (checked && state.selectedSaleClient?.cpf && !input.value) {
-        input.value = state.selectedSaleClient.cpf;
-      }
-
       if (!checked) input.value = '';
     };
 
@@ -368,13 +355,8 @@ export function createSalesModule(ctx) {
       const customerNameRaw = tabEls.sales.querySelector('#sale-customer-name')?.value || '';
       const includeCpf = Boolean(tabEls.sales.querySelector('#sale-include-cpf')?.checked);
       const customerCpfRaw = tabEls.sales.querySelector('#sale-customer-cpf')?.value || '';
-
-      const selectedClientName = String(state.selectedSaleClient?.name || '').trim();
-      const selectedClientCpf = String(state.selectedSaleClient?.cpf || state.selectedSaleClient?.document || '').trim();
-
-      const customerName = String(customerNameRaw).trim() || selectedClientName || 'Balcão';
-      const customerCpf = includeCpf ? (String(customerCpfRaw).trim() || selectedClientCpf) : '';
-
+      const customerName = String(customerNameRaw).trim() || 'Não identificado';
+      const customerCpf = includeCpf ? String(customerCpfRaw).trim() : '';
       const { subtotal, discount, total, amountPaid, change } = calculateCartTotal();
 
       if (amountPaid < total) {
@@ -390,10 +372,12 @@ export function createSalesModule(ctx) {
         total: Number(item.salePrice || 0) * Number(item.quantity || 0)
       }));
 
+      const saleCreatedAt = new Date();
+      const saleDateTimeLabel = saleCreatedAt.toLocaleString('pt-BR');
+
       const payload = {
         customerName,
         customerCpf,
-        customerId: String(state.selectedSaleClient?.id || ''),
         paymentMethod,
         subtotal,
         discount,
@@ -417,16 +401,20 @@ export function createSalesModule(ctx) {
         });
       }
 
-      printModule.printSaleReceipt({ ...payload, id: saleId });
+      printModule.printSaleReceipt({
+        ...payload,
+        id: saleId,
+        createdAt: saleCreatedAt.toISOString(),
+        saleDateTimeLabel
+      });
 
       state.cart = [];
-      state.selectedSaleClient = null;
       searchTerm = '';
 
       const searchInput = tabEls.sales.querySelector('#sale-product-search');
       if (searchInput) searchInput.value = '';
 
-      tabEls.sales.querySelector('#sale-customer-name').value = 'Balcão';
+      tabEls.sales.querySelector('#sale-customer-name').value = '';
       tabEls.sales.querySelector('#sale-payment-method').value = paymentMethods?.[0] || 'Dinheiro';
       tabEls.sales.querySelector('input[name="discount"]').value = '0';
       tabEls.sales.querySelector('input[name="amountPaid"]').value = '0';
@@ -451,6 +439,7 @@ export function createSalesModule(ctx) {
 
     document.addEventListener('keydown', (event) => {
       if (!tabEls.sales?.classList.contains('active')) return;
+
       if (event.key === 'F2') {
         event.preventDefault();
         focusSearchInput();
@@ -469,7 +458,6 @@ export function createSalesModule(ctx) {
             <h2>Selecionar cliente</h2>
             <button class="btn btn-secondary" type="button" id="sale-client-modal-close">Fechar</button>
           </div>
-
           <div id="sale-client-picker-host"></div>
         </div>
       </div>
@@ -487,18 +475,8 @@ export function createSalesModule(ctx) {
     clientsModule.renderClientPicker?.({
       target: '#sale-client-picker-host',
       onSelect: (client) => {
-        state.selectedSaleClient = client || null;
-
         const input = tabEls.sales.querySelector('#sale-customer-name');
-        const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
-        const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
-
-        if (input) input.value = client?.name || 'Balcão';
-
-        if (cpfCheck?.checked && cpfInput && !cpfInput.value) {
-          cpfInput.value = client?.cpf || client?.document || '';
-        }
-
+        if (input) input.value = client.name || '';
         closeModal();
       }
     });
@@ -508,127 +486,138 @@ export function createSalesModule(ctx) {
     const { subtotal, discount, total, change } = calculateCartTotal();
 
     tabEls.sales.innerHTML = `
-      <div class="section-header">
-        <h2>Venda</h2>
-      </div>
+      <div class="section-stack">
+        <div class="sales-layout">
+          <div class="panel">
+            <div class="section-header">
+              <h2>Venda</h2>
+              <span class="muted">Pesquisa de produto e código de barras</span>
+            </div>
 
-      <p class="auth-hint">Pesquisa de produto e código de barras</p>
+            <div class="sales-search-toolbar" style="margin-bottom:14px;">
+              <div class="sales-search-main">
+                <input
+                  id="sale-product-search"
+                  type="text"
+                  placeholder="Digite nome do produto ou código de barras"
+                  autocomplete="off"
+                  value="${escapeHtml(searchTerm)}"
+                />
+              </div>
+              <div class="sales-search-actions">
+                <button class="btn btn-secondary" type="button" id="sale-select-client-btn">Selecionar cliente</button>
+                <button class="btn btn-secondary" type="button" id="sale-clear-client-btn">Limpar cliente</button>
+              </div>
+            </div>
 
-      <div class="form-actions">
-        <button class="btn btn-secondary" type="button" id="sale-select-client-btn">Selecionar cliente</button>
-        <button class="btn btn-secondary" type="button" id="sale-clear-client-btn">Limpar cliente</button>
-      </div>
+            <div class="form-grid" style="margin-bottom:14px;">
+              <label style="grid-column:1 / -1;">
+                Cliente
+                <input id="sale-customer-name" type="text" value="" placeholder="Deixe em branco para não identificado" />
+              </label>
 
-      <div class="filters-grid">
-        <label>
-          Cliente
-          <input id="sale-customer-name" value="${escapeHtml(state.selectedSaleClient?.name || 'Balcão')}" />
-        </label>
+              <label style="grid-column:1 / -1; display:flex; align-items:center; gap:8px;">
+                <input id="sale-include-cpf" type="checkbox" style="width:auto;" />
+                <span>Inserir CPF no cupom</span>
+              </label>
 
-        <label style="display:flex; align-items:end; gap:8px; justify-content:flex-end;">
-          <input type="checkbox" id="sale-include-cpf" />
-          <span>Inserir CPF no cupom</span>
-        </label>
-      </div>
+              <label id="sale-cpf-wrap" style="grid-column:1 / -1; display:none;">
+                CPF
+                <input id="sale-customer-cpf" type="text" placeholder="Digite o CPF do cliente" />
+              </label>
+            </div>
 
-      <label id="sale-cpf-wrap" style="display:none;">
-        CPF
-        <input id="sale-customer-cpf" />
-      </label>
+            <div id="sale-search-results" class="panel-scroll">
+              <div class="empty-state">
+                <strong>Pesquise um produto</strong>
+                <span>Digite nome ou código de barras para listar resultados.</span>
+              </div>
+            </div>
+          </div>
 
-      <div class="filters-grid">
-        <label>
-          Produto
-          <input id="sale-product-search" placeholder="Digite nome ou código de barras para listar resultados." />
-        </label>
-      </div>
+          <div class="panel sticky-summary">
+            <div class="section-header">
+              <h2>Carrinho</h2>
+              <span class="muted"><span id="sale-items-count">${state.cart.length}</span> item(ns)</span>
+            </div>
 
-      <div id="sale-search-results"></div>
+            <div id="sale-cart-items" class="card-scroll-y"></div>
 
-      <div class="section-header" style="margin-top:16px;">
-        <h2>Carrinho</h2>
-        <span id="sale-items-count">${state.cart.length} item(ns)</span>
-      </div>
+            <div class="form-grid" style="margin-top:14px;">
+              <label>
+                Forma de pagamento
+                <select id="sale-payment-method">
+                  ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}">${escapeHtml(method)}</option>`).join('')}
+                </select>
+              </label>
 
-      <div id="sale-cart-items"></div>
+              <label>
+                Desconto
+                <input name="discount" type="number" step="0.01" min="0" value="0" />
+              </label>
 
-      <div class="filters-grid" style="margin-top:16px;">
-        <label>
-          Forma de pagamento
-          <select id="sale-payment-method">
-            ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}">${escapeHtml(method)}</option>`).join('')}
-          </select>
-        </label>
-      </div>
+              <label>
+                Valor pago
+                <input name="amountPaid" type="number" step="0.01" min="0" value="0" />
+              </label>
 
-      <div class="filters-grid">
-        <label>
-          Desconto
-          <input type="number" name="discount" min="0" step="0.01" value="0" />
-        </label>
-      </div>
+              <label style="grid-column:1 / -1;">
+                Observações
+                <textarea name="notes"></textarea>
+              </label>
+            </div>
 
-      <div class="filters-grid">
-        <label>
-          Valor pago
-          <input type="number" name="amountPaid" min="0" step="0.01" value="0" />
-        </label>
-      </div>
+            <div class="summary-box" style="margin-top:14px;">
+              <div class="summary-line"><span>Subtotal</span><strong id="sale-subtotal">${currency(subtotal)}</strong></div>
+              <div class="summary-line"><span>Desconto</span><strong id="sale-discount-view">${currency(discount)}</strong></div>
+              <div class="summary-line total"><span>Total</span><strong id="sale-total">${currency(total)}</strong></div>
+              <div class="summary-line"><span>Troco</span><strong id="sale-change">${currency(change)}</strong></div>
+            </div>
 
-      <div class="filters-grid">
-        <label>
-          Observações
-          <textarea name="notes" rows="3"></textarea>
-        </label>
-      </div>
+            <div class="form-actions" style="margin-top:14px;">
+              <button class="btn btn-primary" type="button" id="finish-sale-btn">Finalizar venda</button>
+              <button class="btn btn-secondary" type="button" id="clear-cart-btn">Limpar carrinho</button>
+            </div>
+          </div>
+        </div>
 
-      <div class="filters-grid" style="margin-top:16px;">
-        <div><strong>Subtotal</strong><br><span id="sale-subtotal">${currency(subtotal)}</span></div>
-        <div><strong>Desconto</strong><br><span id="sale-discount-view">${currency(discount)}</span></div>
-        <div><strong>Total</strong><br><span id="sale-total">${currency(total)}</span></div>
-        <div><strong>Troco</strong><br><span id="sale-change">${currency(change)}</span></div>
-      </div>
+        <div class="table-card">
+          <div class="section-header">
+            <h2>Histórico de vendas</h2>
+          </div>
 
-      <div class="form-actions" style="margin-top:16px;">
-        <button class="btn btn-primary" type="button" id="finish-sale-btn">Finalizar venda</button>
-        <button class="btn btn-secondary" type="button" id="clear-cart-btn">Limpar carrinho</button>
-      </div>
+          <div class="search-row sales-history-filters" style="margin-bottom:14px;">
+            <input id="sales-filter-customer" placeholder="Cliente" value="${escapeHtml(saleFilters.customer)}" />
+            <select id="sales-filter-payment">
+              <option value="">Todas as formas</option>
+              ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}" ${saleFilters.paymentMethod === method ? 'selected' : ''}>${escapeHtml(method)}</option>`).join('')}
+            </select>
+            <input id="sales-filter-date-from" type="date" value="${saleFilters.dateFrom}" />
+            <input id="sales-filter-date-to" type="date" value="${saleFilters.dateTo}" />
+            <button class="btn btn-secondary" type="button" id="sales-filter-apply">Filtrar</button>
+            <button class="btn btn-secondary" type="button" id="sales-filter-clear">Limpar</button>
+          </div>
 
-      <div class="section-header" style="margin-top:24px;">
-        <h2>Histórico de vendas</h2>
-      </div>
-
-      <div class="filters-grid">
-        <input id="sales-filter-customer" placeholder="Cliente" value="${escapeHtml(saleFilters.customer)}" />
-        <select id="sales-filter-payment">
-          <option value="">Todas as formas</option>
-          ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}" ${saleFilters.paymentMethod === method ? 'selected' : ''}>${escapeHtml(method)}</option>`).join('')}
-        </select>
-        <input id="sales-filter-date-from" type="date" value="${escapeHtml(saleFilters.dateFrom)}" />
-        <input id="sales-filter-date-to" type="date" value="${escapeHtml(saleFilters.dateTo)}" />
-        <button class="btn btn-secondary" type="button" id="sales-filter-apply">Filtrar</button>
-        <button class="btn btn-secondary" type="button" id="sales-filter-clear">Limpar</button>
-      </div>
-
-      <div class="table-wrap" style="margin-top:16px;">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Cliente</th>
-              <th>Pagamento</th>
-              <th>Total</th>
-              <th>Itens</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody id="sales-history-table"></tbody>
-        </table>
+          <div class="table-wrap scroll-dual">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Cliente</th>
+                  <th>Pagamento</th>
+                  <th>Total</th>
+                  <th>Itens</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="sales-history-table"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     `;
 
     const searchInput = tabEls.sales.querySelector('#sale-product-search');
-
     searchInput?.addEventListener('input', (event) => {
       searchTerm = event.currentTarget.value || '';
       renderSearchResults();
@@ -641,52 +630,34 @@ export function createSalesModule(ctx) {
       }
     });
 
-    bindAsyncButton(
-      tabEls.sales.querySelector('#sale-select-client-btn'),
-      async () => {
-        openClientPicker();
-      },
-      { busyLabel: 'Abrindo...' }
-    );
+    bindAsyncButton(tabEls.sales.querySelector('#sale-select-client-btn'), async () => {
+      openClientPicker();
+    }, { busyLabel: 'Abrindo...' });
 
-    bindAsyncButton(
-      tabEls.sales.querySelector('#sale-clear-client-btn'),
-      async () => {
-        state.selectedSaleClient = null;
+    bindAsyncButton(tabEls.sales.querySelector('#sale-clear-client-btn'), async () => {
+      const clientInput = tabEls.sales.querySelector('#sale-customer-name');
+      const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
+      const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
 
-        const clientInput = tabEls.sales.querySelector('#sale-customer-name');
-        const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
-        const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
+      if (clientInput) clientInput.value = '';
+      if (cpfCheck) cpfCheck.checked = false;
+      if (cpfInput) cpfInput.value = '';
 
-        if (clientInput) clientInput.value = 'Balcão';
-        if (cpfCheck) cpfCheck.checked = false;
-        if (cpfInput) cpfInput.value = '';
-
-        bindCpfToggle();
-        showToast('Cliente limpo.', 'info');
-      },
-      { busyLabel: 'Limpando...' }
-    );
+      bindCpfToggle();
+      showToast('Cliente limpo.', 'info');
+    }, { busyLabel: 'Limpando...' });
 
     tabEls.sales.querySelector('#sale-payment-method')?.addEventListener('change', updateSaleSummary);
     tabEls.sales.querySelector('input[name="discount"]')?.addEventListener('input', updateSaleSummary);
     tabEls.sales.querySelector('input[name="amountPaid"]')?.addEventListener('input', updateSaleSummary);
 
-    bindAsyncButton(
-      tabEls.sales.querySelector('#finish-sale-btn'),
-      async () => {
-        await finishSale();
-      },
-      { busyLabel: 'Finalizando...' }
-    );
+    bindAsyncButton(tabEls.sales.querySelector('#finish-sale-btn'), async () => {
+      await finishSale();
+    }, { busyLabel: 'Finalizando...' });
 
-    bindAsyncButton(
-      tabEls.sales.querySelector('#clear-cart-btn'),
-      async () => {
-        clearCartWithFeedback();
-      },
-      { busyLabel: 'Limpando...' }
-    );
+    bindAsyncButton(tabEls.sales.querySelector('#clear-cart-btn'), async () => {
+      clearCartWithFeedback();
+    }, { busyLabel: 'Limpando...' });
 
     tabEls.sales.querySelector('#sales-filter-apply')?.addEventListener('click', () => {
       saleFilters.customer = tabEls.sales.querySelector('#sales-filter-customer')?.value || '';
@@ -696,14 +667,10 @@ export function createSalesModule(ctx) {
       renderHistory();
     });
 
-    bindAsyncButton(
-      tabEls.sales.querySelector('#sales-filter-clear'),
-      async () => {
-        saleFilters = { customer: '', paymentMethod: '', dateFrom: '', dateTo: '' };
-        render();
-      },
-      { busyLabel: 'Limpando...' }
-    );
+    bindAsyncButton(tabEls.sales.querySelector('#sales-filter-clear'), async () => {
+      saleFilters = { customer: '', paymentMethod: '', dateFrom: '', dateTo: '' };
+      render();
+    }, { busyLabel: 'Limpando...' });
 
     renderSearchResults();
     renderCart();
@@ -713,5 +680,7 @@ export function createSalesModule(ctx) {
     bindKeyboardShortcuts();
   }
 
-  return { render };
+  return {
+    render
+  };
 }
