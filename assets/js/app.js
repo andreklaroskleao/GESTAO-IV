@@ -24,6 +24,7 @@ import { createPayablesModule } from './modules/payables.js';
 import { createPurchasesModule } from './modules/purchases.js';
 import { createCashierModule } from './modules/cashier.js';
 import { createAccountsModule } from './modules/accounts.js';
+import { createNotificationsModule } from './modules/notifications.js';
 
 import {
   login,
@@ -73,6 +74,8 @@ const els = {
   stockAlertCount: document.getElementById('stock-alert-count'),
   stockAlertList: document.getElementById('stock-alert-list'),
   alertsPanel: document.getElementById('alerts-panel'),
+  notificationsBellBtn: document.getElementById('notifications-bell-btn'),
+  notificationsBadge: document.getElementById('notifications-badge'),
   sidebarToggle: document.getElementById('sidebar-toggle'),
   mobileSidebarToggle: document.getElementById('mobile-sidebar-toggle'),
   globalSearchInput: document.getElementById('global-search-input'),
@@ -102,6 +105,7 @@ const state = {
   deliveries: [],
   clients: [],
   suppliers: [],
+  notifications: [],
   inventoryMovements: [],
   auditLogs: [],
   cashSessions: [],
@@ -137,7 +141,6 @@ function isMobileViewport() {
 
 function applySidebarState() {
   const collapsed = localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true';
-
   document.body.classList.toggle('sidebar-collapsed', !isMobileViewport() && collapsed);
 
   if (isMobileViewport()) {
@@ -254,6 +257,13 @@ const accountsModule = createAccountsModule({
 });
 
 const receivablesAlertsModule = createReceivablesAlertsModule({ state });
+
+const notificationsModule = createNotificationsModule({
+  state,
+  refs,
+  createDoc,
+  updateByPath
+});
 
 const dashboardModule = createDashboardModule({
   state,
@@ -379,7 +389,6 @@ pwaModule.bindOnlineOfflineFeedback();
 
 function setScreen(isAuthenticated) {
   if (!els.loginScreen || !els.appScreen) return;
-
   els.loginScreen.classList.toggle('active', !isAuthenticated);
   els.appScreen.classList.toggle('active', isAuthenticated);
 }
@@ -503,82 +512,9 @@ function renderApp() {
   renderPayables();
   renderUsers();
   renderSettings();
-  renderStockAlerts();
   refreshNavigationPermissions();
-}
-
-function renderStockAlerts() {
-  if (!els.stockAlertCount || !els.stockAlertList) return;
-
-  const lowStock = dashboardModule.getLowStockProducts();
-  const receivablesSummary = receivablesAlertsModule.getNotificationSummary();
-
-  const payableItems = (state.accountsPayable || [])
-    .filter((item) => item.deleted !== true && Number(item.openAmount || 0) > 0 && item.dueDate)
-    .map((item) => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const due = new Date(`${item.dueDate}T00:00:00`);
-      const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
-
-      if (diff < 0) {
-        return {
-          title: `Conta a pagar vencida há ${Math.abs(diff)} dia(s)`,
-          supplierName: item.supplierName || 'Fornecedor',
-          dueDate: item.dueDate,
-          amount: Number(item.openAmount || 0)
-        };
-      }
-
-      if (diff === 0) {
-        return {
-          title: 'Conta a pagar vence hoje',
-          supplierName: item.supplierName || 'Fornecedor',
-          dueDate: item.dueDate,
-          amount: Number(item.openAmount || 0)
-        };
-      }
-
-      if (diff <= 3) {
-        return {
-          title: `Conta a pagar vence em ${diff} dia(s)`,
-          supplierName: item.supplierName || 'Fornecedor',
-          dueDate: item.dueDate,
-          amount: Number(item.openAmount || 0)
-        };
-      }
-
-      return null;
-    })
-    .filter(Boolean);
-
-  const totalAlerts = lowStock.length + receivablesSummary.total + payableItems.length;
-  els.stockAlertCount.textContent = String(totalAlerts);
-
-  const stockHtml = lowStock.map((item) => `
-    <div class="alert-item">
-      <strong>${item.name}</strong>
-      <span>Estoque atual: ${item.quantity}</span>
-    </div>
-  `).join('');
-
-  const receivablesHtml = receivablesSummary.items.map((item) => `
-    <div class="alert-item">
-      <strong>${item.clientName}</strong>
-      <span>${item.title} · Vencimento: ${item.dueDate} · Valor: ${Number(item.amount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-    </div>
-  `).join('');
-
-  const payablesHtml = payableItems.map((item) => `
-    <div class="alert-item">
-      <strong>${item.supplierName}</strong>
-      <span>${item.title} · Vencimento: ${item.dueDate} · Valor: ${Number(item.amount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-    </div>
-  `).join('');
-
-  els.stockAlertList.innerHTML = (stockHtml + receivablesHtml + payablesHtml)
-    || '<div class="empty-state">Sem alertas no momento.</div>';
+  notificationsModule.generateSystemNotifications();
+  notificationsModule.updateBellBadge();
 }
 
 function unsubscribeAll() {
@@ -604,6 +540,7 @@ function resetAppState() {
   state.deliveries = [];
   state.clients = [];
   state.suppliers = [];
+  state.notifications = [];
   state.inventoryMovements = [];
   state.auditLogs = [];
   state.cashSessions = [];
@@ -621,10 +558,6 @@ function resetAppState() {
   state.editingPurchaseId = null;
 
   document.body.classList.remove('sidebar-open');
-  els.alertsPanel?.classList.add('hidden');
-
-  if (els.stockAlertList) els.stockAlertList.innerHTML = '';
-  if (els.stockAlertCount) els.stockAlertCount.textContent = '0';
 
   Object.values(tabEls).forEach((panel) => {
     if (panel) {
@@ -641,6 +574,7 @@ function resetAppState() {
   if (els.pageTitle) els.pageTitle.textContent = 'Dashboard';
   if (els.pageSubtitle) els.pageSubtitle.textContent = 'Área: Dashboard.';
   if (els.loginForm) els.loginForm.reset();
+  if (els.notificationsBadge) els.notificationsBadge.textContent = '0';
 
   closeActionsSheet();
 }
@@ -660,7 +594,8 @@ function bootstrapData() {
     renderSales();
     renderReports();
     renderDashboard();
-    renderStockAlerts();
+    notificationsModule.generateSystemNotifications();
+    notificationsModule.updateBellBadge();
   }));
 
   state.unsubscribe.push(subscribeCollection('sales', [orderBy('createdAt', 'desc')], (rows) => {
@@ -674,6 +609,8 @@ function bootstrapData() {
     state.deliveries = rows;
     renderDeliveries();
     renderDashboard();
+    notificationsModule.generateSystemNotifications();
+    notificationsModule.updateBellBadge();
   }));
 
   state.unsubscribe.push(subscribeCollection('settings', [orderBy('createdAt', 'desc')], (rows) => {
@@ -688,7 +625,8 @@ function bootstrapData() {
 
     renderSettings();
     renderDashboard();
-    renderStockAlerts();
+    notificationsModule.generateSystemNotifications();
+    notificationsModule.updateBellBadge();
   }));
 
   state.unsubscribe.push(subscribeCollection('inventory_movements', [orderBy('createdAt', 'desc')], (rows) => {
@@ -728,14 +666,16 @@ function bootstrapData() {
     state.accountsReceivable = rows;
     renderClients();
     renderDashboard();
-    renderStockAlerts();
+    notificationsModule.generateSystemNotifications();
+    notificationsModule.updateBellBadge();
   }));
 
   state.unsubscribe.push(subscribeCollection('accounts_payable', [orderBy('createdAt', 'desc')], (rows) => {
     state.accountsPayable = rows;
     renderPayables();
     renderDashboard();
-    renderStockAlerts();
+    notificationsModule.generateSystemNotifications();
+    notificationsModule.updateBellBadge();
   }));
 
   state.unsubscribe.push(subscribeCollection('purchase_orders', [orderBy('createdAt', 'desc')], (rows) => {
@@ -746,6 +686,11 @@ function bootstrapData() {
   state.unsubscribe.push(subscribeCollection('purchases', [orderBy('receivedAt', 'desc')], (rows) => {
     state.purchases = rows;
     renderPurchases();
+  }));
+
+  state.unsubscribe.push(subscribeCollection('notifications', [orderBy('createdAt', 'desc')], (rows) => {
+    state.notifications = rows.filter((item) => item.deleted !== true);
+    notificationsModule.updateBellBadge();
   }));
 }
 
@@ -869,11 +814,8 @@ function openConfirmDeleteModal({
 
   root.querySelector('#confirm-delete-close')?.addEventListener('click', closeModal);
   root.querySelector('#confirm-delete-cancel')?.addEventListener('click', closeModal);
-
   root.querySelector('#confirm-delete-backdrop')?.addEventListener('click', (event) => {
-    if (event.target.id === 'confirm-delete-backdrop') {
-      closeModal();
-    }
+    if (event.target.id === 'confirm-delete-backdrop') closeModal();
   });
 
   root.querySelector('#confirm-delete-confirm')?.addEventListener('click', async () => {
@@ -888,90 +830,55 @@ function openConfirmDeleteModal({
 function buildGlobalSearchIndex() {
   const entries = [];
 
-  (state.products || [])
-    .filter((item) => item.deleted !== true)
-    .forEach((item) => {
-      entries.push({
-        type: 'product',
-        label: item.name || 'Produto',
-        subtitle: `${item.barcode || 'Sem código'} · ${item.brand || 'Sem marca'}`,
-        tab: 'products',
-        search: [item.name, item.barcode, item.brand, item.supplier].join(' ').toLowerCase()
-      });
+  (state.products || []).filter((item) => item.deleted !== true).forEach((item) => {
+    entries.push({
+      type: 'product',
+      label: item.name || 'Produto',
+      subtitle: `${item.barcode || 'Sem código'} · ${item.brand || 'Sem marca'}`,
+      tab: 'products',
+      search: [item.name, item.barcode, item.brand, item.supplier].join(' ').toLowerCase()
     });
+  });
 
-  (state.clients || [])
-    .filter((item) => item.deleted !== true)
-    .forEach((item) => {
-      entries.push({
-        type: 'client',
-        label: item.name || 'Cliente',
-        subtitle: `${item.phone || 'Sem telefone'} · ${item.email || 'Sem e-mail'}`,
-        tab: 'clients',
-        search: [item.name, item.phone, item.email, item.address].join(' ').toLowerCase()
-      });
+  (state.clients || []).filter((item) => item.deleted !== true).forEach((item) => {
+    entries.push({
+      type: 'client',
+      label: item.name || 'Cliente',
+      subtitle: `${item.phone || 'Sem telefone'} · ${item.email || 'Sem e-mail'}`,
+      tab: 'clients',
+      search: [item.name, item.phone, item.email, item.address].join(' ').toLowerCase()
     });
+  });
 
-  (state.suppliers || [])
-    .filter((item) => item.deleted !== true)
-    .forEach((item) => {
-      entries.push({
-        type: 'supplier',
-        label: item.name || 'Fornecedor',
-        subtitle: `${item.phone || 'Sem telefone'} · ${item.email || 'Sem e-mail'}`,
-        tab: 'suppliers',
-        search: [item.name, item.contactName, item.phone, item.email, item.document].join(' ').toLowerCase()
-      });
+  (state.suppliers || []).filter((item) => item.deleted !== true).forEach((item) => {
+    entries.push({
+      type: 'supplier',
+      label: item.name || 'Fornecedor',
+      subtitle: `${item.phone || 'Sem telefone'} · ${item.email || 'Sem e-mail'}`,
+      tab: 'suppliers',
+      search: [item.name, item.contactName, item.phone, item.email, item.document].join(' ').toLowerCase()
     });
+  });
 
-  (state.sales || [])
-    .filter((item) => item.deleted !== true)
-    .slice(0, 100)
-    .forEach((item) => {
-      entries.push({
-        type: 'sale',
-        label: item.customerName || 'Venda balcão',
-        subtitle: `${currency(item.total || 0)} · ${formatDateTime(item.createdAt)}`,
-        tab: 'sales',
-        search: [item.customerName, item.paymentMethod, item.cashierName].join(' ').toLowerCase()
-      });
+  (state.sales || []).filter((item) => item.deleted !== true).slice(0, 100).forEach((item) => {
+    entries.push({
+      type: 'sale',
+      label: item.customerName || 'Venda balcão',
+      subtitle: `${currency(item.total || 0)} · ${formatDateTime(item.createdAt)}`,
+      tab: 'sales',
+      search: [item.customerName, item.paymentMethod, item.cashierName].join(' ').toLowerCase()
     });
+  });
 
-  (state.deliveries || [])
-    .filter((item) => item.deleted !== true)
-    .forEach((item) => {
-      entries.push({
-        type: 'delivery',
-        label: item.customerName || 'Entrega',
-        subtitle: `${item.phone || 'Sem telefone'} · ${item.status || 'Sem status'}`,
-        tab: 'deliveries',
-        search: [item.customerName, item.phone, item.address, item.status].join(' ').toLowerCase()
-      });
+  (state.deliveries || []).filter((item) => item.deleted !== true).forEach((item) => {
+    entries.push({
+      type: 'delivery',
+      label: item.customerName || 'Entrega',
+      subtitle: `${item.phone || 'Sem telefone'} · ${item.status || 'Sem status'}`,
+      tab: 'deliveries',
+      search: [item.customerName, item.phone, item.address, item.status].join(' ').toLowerCase()
     });
-
-  (state.accountsPayable || [])
-    .filter((item) => item.deleted !== true)
-    .forEach((item) => {
-      entries.push({
-        type: 'payable',
-        label: item.description || 'Conta a pagar',
-        subtitle: `${item.supplierName || 'Fornecedor'} · ${currency(item.openAmount || 0)}`,
-        tab: 'payables',
-        search: [item.description, item.supplierName, item.documentNumber].join(' ').toLowerCase()
-      });
-    });
-
-  (state.purchases || [])
-    .filter((item) => item.deleted !== true)
-    .forEach((item) => {
-      entries.push({
-        type: 'purchase',
-        label: item.description || 'Compra',
-        subtitle: `${item.supplierName || 'Fornecedor'} · ${currency(item.totalAmount || 0)}`,
-        tab: 'purchases',
-        search: [item.description, item.supplierName, item.documentNumber].join(' ').toLowerCase()
-      });
-    });
+  });
 
   return entries;
 }
@@ -1021,9 +928,7 @@ function performGlobalSearch(rawTerm) {
 
   modalRoot.querySelector('#global-search-modal-close')?.addEventListener('click', closeModal);
   modalRoot.querySelector('#global-search-modal-backdrop')?.addEventListener('click', (event) => {
-    if (event.target.id === 'global-search-modal-backdrop') {
-      closeModal();
-    }
+    if (event.target.id === 'global-search-modal-backdrop') closeModal();
   });
 
   modalRoot.querySelectorAll('[data-search-go-tab]').forEach((btn) => {
@@ -1067,20 +972,8 @@ els.nav?.addEventListener('click', (event) => {
   closeMobileSidebar();
 });
 
-els.stockAlertBtn?.addEventListener('click', () => {
-  els.alertsPanel?.classList.toggle('hidden');
-});
-
 els.sidebarToggle?.addEventListener('click', toggleSidebar);
 els.mobileSidebarToggle?.addEventListener('click', toggleSidebar);
-
-document.addEventListener('click', (event) => {
-  if (!els.alertsPanel || !els.stockAlertBtn) return;
-
-  if (!els.alertsPanel.contains(event.target) && !els.stockAlertBtn.contains(event.target)) {
-    els.alertsPanel.classList.add('hidden');
-  }
-});
 
 document.addEventListener('click', (event) => {
   if (!isMobileViewport()) return;
@@ -1116,6 +1009,8 @@ els.globalSearchInput?.addEventListener('input', () => {
     debouncedGlobalSearch();
   }
 });
+
+notificationsModule.bindBell();
 
 watchAuth(async (user) => {
   state.currentUser = user;
