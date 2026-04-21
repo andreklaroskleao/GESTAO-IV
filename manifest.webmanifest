@@ -1,0 +1,23 @@
+{
+  "name": "Gestao III",
+  "short_name": "Gestao III",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#1d4ed8",
+  "description": "Sistema de gestão comercial com vendas, estoque, clientes, fornecedores, compras e contas.",
+  "icons": [
+    {
+      "src": "./assets/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

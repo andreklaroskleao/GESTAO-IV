@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#1d4ed8" />
+    <meta
+      name="description"
+      content="Sistema de gestão comercial com vendas, estoque, clientes, fornecedores, compras e contas."
+    />
+
+    <title>Gestao III</title>
+
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./assets/img/icon-192.png" />
+    <link rel="apple-touch-icon" href="./assets/img/icon-192.png" />
+    <link rel="stylesheet" href="./assets/css/style.css" />
+
+    <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+  </head>
+  <body>
+    <section id="login-screen" class="screen active">
+      <div class="auth-shell">
+        <div class="auth-card">
+          <div class="auth-brand">
+            <h1>Gestao III</h1>
+            <p>Sistema de gestão comercial</p>
+          </div>
+
+          <form id="login-form" class="auth-form">
+            <label>
+              E-mail
+              <input type="email" name="email" autocomplete="username" required />
+            </label>
+
+            <label>
+              Senha
+              <input
+                type="password"
+                name="password"
+                autocomplete="current-password"
+                required
+              />
+            </label>
+
+            <div class="form-actions">
+              <button class="btn btn-primary" type="submit">Entrar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section id="app-screen" class="screen">
+      <div class="app-shell">
+        <aside class="sidebar">
+          <div class="sidebar-top">
+            <div class="brand-block">
+              <strong id="store-name-side">Gestão Comercial</strong>
+              <span>Painel operacional</span>
+            </div>
+
+            <button
+              id="sidebar-toggle"
+              class="icon-btn desktop-only-inline"
+              type="button"
+              aria-label="Alternar menu"
+              title="Alternar menu"
+            >
+              ☰
+            </button>
+          </div>
+
+          <nav id="main-nav" class="nav-list">
+            <button class="nav-item active" data-tab="dashboard" type="button">
+              <span class="nav-item-icon">📊</span>
+              <span class="nav-item-label">Dashboard</span>
+            </button>
+
+            <button class="nav-item" data-tab="sales" type="button">
+              <span class="nav-item-icon">🛒</span>
+              <span class="nav-item-label">Vendas</span>
+            </button>
+
+            <button class="nav-item" data-tab="products" type="button">
+              <span class="nav-item-icon">📦</span>
+              <span class="nav-item-label">Produtos</span>
+            </button>
+
+            <button class="nav-item" data-tab="reports" type="button">
+              <span class="nav-item-icon">📈</span>
+              <span class="nav-item-label">Relatórios</span>
+            </button>
+
+            <button class="nav-item" data-tab="deliveries" type="button">
+              <span class="nav-item-icon">🚚</span>
+              <span class="nav-item-label">Tele-entregas</span>
+            </button>
+
+            <button class="nav-item" data-tab="clients" type="button">
+              <span class="nav-item-icon">👥</span>
+              <span class="nav-item-label">Clientes</span>
+            </button>
+
+            <button class="nav-item" data-tab="suppliers" type="button">
+              <span class="nav-item-icon">🏭</span>
+              <span class="nav-item-label">Fornecedores</span>
+            </button>
+
+            <button class="nav-item" data-tab="purchases" type="button">
+              <span class="nav-item-icon">🧾</span>
+              <span class="nav-item-label">Compras</span>
+            </button>
+
+            <button class="nav-item" data-tab="payables" type="button">
+              <span class="nav-item-icon">💸</span>
+              <span class="nav-item-label">Contas a pagar</span>
+            </button>
+
+            <button class="nav-item" data-tab="users" type="button">
+              <span class="nav-item-icon">🔐</span>
+              <span class="nav-item-label">Usuários</span>
+            </button>
+
+            <button class="nav-item" data-tab="settings" type="button">
+              <span class="nav-item-icon">⚙️</span>
+              <span class="nav-item-label">Configurações</span>
+            </button>
+          </nav>
+        </aside>
+
+        <div class="main-shell">
+          <header class="topbar">
+            <div class="topbar-left">
+              <button
+                id="mobile-sidebar-toggle"
+                class="icon-btn mobile-only-inline"
+                type="button"
+                aria-label="Abrir menu"
+                title="Abrir menu"
+              >
+                ☰
+              </button>
+
+              <div class="page-heading">
+                <h1 id="page-title">Dashboard</h1>
+                <p id="page-subtitle">Área: Dashboard.</p>
+              </div>
+            </div>
+
+            <div class="topbar-right">
+              <div class="topbar-search">
+                <input id="global-search-input" type="search" placeholder="Busca global" />
+                <button id="global-search-btn" class="btn btn-secondary" type="button">
+                  Buscar
+                </button>
+              </div>
+
+              <button id="install-app-btn" class="btn btn-secondary hidden" type="button">
+                Instalar app
+              </button>
+
+              <div class="alerts-wrapper">
+                <button id="stock-alert-btn" class="icon-btn" type="button" aria-label="Alertas" title="Alertas">
+                  🔔
+                  <span id="stock-alert-count" class="badge-counter">0</span>
+                </button>
+
+                <div id="alerts-panel" class="alerts-panel hidden">
+                  <div class="section-header">
+                    <h2>Alertas</h2>
+                  </div>
+                  <div id="stock-alert-list" class="stack-list slim-list"></div>
+                </div>
+              </div>
+
+              <div class="user-box">
+                <span id="current-user-name">Usuário</span>
+                <button id="logout-btn" class="btn btn-secondary" type="button">Sair</button>
+              </div>
+            </div>
+          </header>
+
+          <main class="content-area">
+            <section id="tab-dashboard" class="tab-panel active"></section>
+            <section id="tab-sales" class="tab-panel"></section>
+            <section id="tab-products" class="tab-panel"></section>
+            <section id="tab-reports" class="tab-panel"></section>
+            <section id="tab-deliveries" class="tab-panel"></section>
+            <section id="tab-clients" class="tab-panel"></section>
+            <section id="tab-suppliers" class="tab-panel"></section>
+            <section id="tab-purchases" class="tab-panel"></section>
+            <section id="tab-payables" class="tab-panel"></section>
+            <section id="tab-users" class="tab-panel"></section>
+            <section id="tab-settings" class="tab-panel"></section>
+          </main>
+        </div>
+      </div>
+    </section>
+
+    <div id="modal-root"></div>
+    <div id="toast-root"></div>
+
+    <script type="module" src="./assets/js/app.js"></script>
+  </body>
+</html>
