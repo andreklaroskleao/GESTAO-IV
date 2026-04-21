@@ -75,11 +75,18 @@ export function createSalesModule(ctx) {
 
   function updateSaleSummary() {
     const { subtotal, discount, total, change } = calculateCartTotal();
-    tabEls.sales.querySelector('#sale-subtotal').textContent = currency(subtotal);
-    tabEls.sales.querySelector('#sale-discount-view').textContent = currency(discount);
-    tabEls.sales.querySelector('#sale-total').textContent = currency(total);
-    tabEls.sales.querySelector('#sale-change').textContent = currency(change);
-    tabEls.sales.querySelector('#sale-items-count').textContent = String((state.cart || []).length);
+
+    const subtotalEl = tabEls.sales.querySelector('#sale-subtotal');
+    const discountEl = tabEls.sales.querySelector('#sale-discount-view');
+    const totalEl = tabEls.sales.querySelector('#sale-total');
+    const changeEl = tabEls.sales.querySelector('#sale-change');
+    const itemsCountEl = tabEls.sales.querySelector('#sale-items-count');
+
+    if (subtotalEl) subtotalEl.textContent = currency(subtotal);
+    if (discountEl) discountEl.textContent = currency(discount);
+    if (totalEl) totalEl.textContent = currency(total);
+    if (changeEl) changeEl.textContent = currency(change);
+    if (itemsCountEl) itemsCountEl.textContent = String((state.cart || []).length);
   }
 
   function normalizeSaleForPrint(sale) {
@@ -304,7 +311,7 @@ export function createSalesModule(ctx) {
           (sale) => `
             <tr>
               <td>${escapeHtml(formatDateTime(sale.createdAt))}</td>
-              <td>${escapeHtml(sale.customerName || 'Não identificado')}</td>
+              <td>${escapeHtml(sale.customerName || 'Balcão')}</td>
               <td>${escapeHtml(sale.paymentMethod || '-')}</td>
               <td>${currency(sale.total || 0)}</td>
               <td>${Array.isArray(sale.items) ? sale.items.length : 0}</td>
@@ -365,7 +372,7 @@ export function createSalesModule(ctx) {
       const selectedClientName = String(state.selectedSaleClient?.name || '').trim();
       const selectedClientCpf = String(state.selectedSaleClient?.cpf || state.selectedSaleClient?.document || '').trim();
 
-      const customerName = String(customerNameRaw).trim() || selectedClientName || 'Não identificado';
+      const customerName = String(customerNameRaw).trim() || selectedClientName || 'Balcão';
       const customerCpf = includeCpf ? (String(customerCpfRaw).trim() || selectedClientCpf) : '';
 
       const { subtotal, discount, total, amountPaid, change } = calculateCartTotal();
@@ -382,9 +389,6 @@ export function createSalesModule(ctx) {
         unitPrice: Number(item.salePrice || 0),
         total: Number(item.salePrice || 0) * Number(item.quantity || 0)
       }));
-
-      const saleCreatedAt = new Date();
-      const saleDateTimeLabel = saleCreatedAt.toLocaleString('pt-BR');
 
       const payload = {
         customerName,
@@ -413,12 +417,7 @@ export function createSalesModule(ctx) {
         });
       }
 
-      printModule.printSaleReceipt({
-        ...payload,
-        id: saleId,
-        createdAt: saleCreatedAt.toISOString(),
-        saleDateTimeLabel
-      });
+      printModule.printSaleReceipt({ ...payload, id: saleId });
 
       state.cart = [];
       state.selectedSaleClient = null;
@@ -427,7 +426,7 @@ export function createSalesModule(ctx) {
       const searchInput = tabEls.sales.querySelector('#sale-product-search');
       if (searchInput) searchInput.value = '';
 
-      tabEls.sales.querySelector('#sale-customer-name').value = '';
+      tabEls.sales.querySelector('#sale-customer-name').value = 'Balcão';
       tabEls.sales.querySelector('#sale-payment-method').value = paymentMethods?.[0] || 'Dinheiro';
       tabEls.sales.querySelector('input[name="discount"]').value = '0';
       tabEls.sales.querySelector('input[name="amountPaid"]').value = '0';
@@ -494,7 +493,7 @@ export function createSalesModule(ctx) {
         const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
         const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
 
-        if (input) input.value = client?.name || '';
+        if (input) input.value = client?.name || 'Balcão';
 
         if (cpfCheck?.checked && cpfInput && !cpfInput.value) {
           cpfInput.value = client?.cpf || client?.document || '';
@@ -523,19 +522,19 @@ export function createSalesModule(ctx) {
       <div class="filters-grid">
         <label>
           Cliente
-          <input id="sale-customer-name" value="${escapeHtml(state.selectedSaleClient?.name || '')}" />
+          <input id="sale-customer-name" value="${escapeHtml(state.selectedSaleClient?.name || 'Balcão')}" />
         </label>
 
-        <label style="display:flex; align-items:end; gap:8px;">
+        <label style="display:flex; align-items:end; gap:8px; justify-content:flex-end;">
           <input type="checkbox" id="sale-include-cpf" />
           <span>Inserir CPF no cupom</span>
         </label>
-
-        <label id="sale-cpf-wrap">
-          CPF
-          <input id="sale-customer-cpf" />
-        </label>
       </div>
+
+      <label id="sale-cpf-wrap" style="display:none;">
+        CPF
+        <input id="sale-customer-cpf" />
+      </label>
 
       <div class="filters-grid">
         <label>
@@ -560,17 +559,23 @@ export function createSalesModule(ctx) {
             ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}">${escapeHtml(method)}</option>`).join('')}
           </select>
         </label>
+      </div>
 
+      <div class="filters-grid">
         <label>
           Desconto
           <input type="number" name="discount" min="0" step="0.01" value="0" />
         </label>
+      </div>
 
+      <div class="filters-grid">
         <label>
           Valor pago
           <input type="number" name="amountPaid" min="0" step="0.01" value="0" />
         </label>
+      </div>
 
+      <div class="filters-grid">
         <label>
           Observações
           <textarea name="notes" rows="3"></textarea>
@@ -594,13 +599,13 @@ export function createSalesModule(ctx) {
       </div>
 
       <div class="filters-grid">
-        <input id="sales-filter-customer" placeholder="Cliente" />
+        <input id="sales-filter-customer" placeholder="Cliente" value="${escapeHtml(saleFilters.customer)}" />
         <select id="sales-filter-payment">
           <option value="">Todas as formas</option>
-          ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}">${escapeHtml(method)}</option>`).join('')}
+          ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}" ${saleFilters.paymentMethod === method ? 'selected' : ''}>${escapeHtml(method)}</option>`).join('')}
         </select>
-        <input id="sales-filter-date-from" type="date" />
-        <input id="sales-filter-date-to" type="date" />
+        <input id="sales-filter-date-from" type="date" value="${escapeHtml(saleFilters.dateFrom)}" />
+        <input id="sales-filter-date-to" type="date" value="${escapeHtml(saleFilters.dateTo)}" />
         <button class="btn btn-secondary" type="button" id="sales-filter-apply">Filtrar</button>
         <button class="btn btn-secondary" type="button" id="sales-filter-clear">Limpar</button>
       </div>
@@ -653,7 +658,7 @@ export function createSalesModule(ctx) {
         const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
         const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
 
-        if (clientInput) clientInput.value = '';
+        if (clientInput) clientInput.value = 'Balcão';
         if (cpfCheck) cpfCheck.checked = false;
         if (cpfInput) cpfInput.value = '';
 
