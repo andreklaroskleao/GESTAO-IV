@@ -581,119 +581,236 @@ function resetAppState() {
   closeActionsSheet();
 }
 
+function safeSubscribe(collectionName, queryConstraints, callback, canRead = true) {
+  if (!canRead) return;
+
+  const unsubscribe = subscribeCollection(
+    collectionName,
+    queryConstraints,
+    callback,
+    (error) => {
+      if (error?.code === 'permission-denied') {
+        console.warn(`Sem permissão para ler "${collectionName}".`);
+        return;
+      }
+
+      console.error(`Erro ao ouvir "${collectionName}":`, error);
+    }
+  );
+
+  state.unsubscribe.push(unsubscribe);
+}
+
 function bootstrapData() {
   unsubscribeAll();
 
-  state.unsubscribe.push(subscribeCollection('users', [orderBy('fullName')], (rows) => {
-    state.users = rows;
-    renderUsers();
-    renderDashboard();
-  }));
+  safeSubscribe(
+    'users',
+    [orderBy('fullName')],
+    (rows) => {
+      state.users = rows;
+      renderUsers();
+      renderDashboard();
+    },
+    ['master', 'admin'].includes(String(state.currentUser?.accessLevel || '').toLowerCase())
+  );
 
-  state.unsubscribe.push(subscribeCollection('products', [orderBy('name')], (rows) => {
-    state.products = rows.filter((item) => item.deleted !== true);
-    renderProducts();
-    renderSales();
-    renderReports();
-    renderDashboard();
-    notificationsModule.generateSystemNotifications();
-    notificationsModule.updateBellBadge();
-  }));
+  safeSubscribe(
+    'products',
+    [orderBy('name')],
+    (rows) => {
+      state.products = rows.filter((item) => item.deleted !== true);
+      renderProducts();
+      renderSales();
+      renderReports();
+      renderDashboard();
+      notificationsModule.generateSystemNotifications();
+      notificationsModule.updateBellBadge();
+    },
+    hasPermission(state.currentUser, 'products') ||
+      hasPermission(state.currentUser, 'sales') ||
+      hasPermission(state.currentUser, 'reports')
+  );
 
-  state.unsubscribe.push(subscribeCollection('sales', [orderBy('createdAt', 'desc')], (rows) => {
-    state.sales = rows;
-    renderSales();
-    renderReports();
-    renderDashboard();
-  }));
+  safeSubscribe(
+    'sales',
+    [orderBy('createdAt', 'desc')],
+    (rows) => {
+      state.sales = rows;
+      renderSales();
+      renderReports();
+      renderDashboard();
+    },
+    hasPermission(state.currentUser, 'sales') ||
+      hasPermission(state.currentUser, 'reports') ||
+      hasPermission(state.currentUser, 'dashboard')
+  );
 
-  state.unsubscribe.push(subscribeCollection('deliveries', [orderBy('scheduledAt', 'desc')], (rows) => {
-    state.deliveries = rows;
-    renderDeliveries();
-    renderDashboard();
-    notificationsModule.generateSystemNotifications();
-    notificationsModule.updateBellBadge();
-  }));
+  safeSubscribe(
+    'deliveries',
+    [orderBy('scheduledAt', 'desc')],
+    (rows) => {
+      state.deliveries = rows;
+      renderDeliveries();
+      renderDashboard();
+      notificationsModule.generateSystemNotifications();
+      notificationsModule.updateBellBadge();
+    },
+    hasPermission(state.currentUser, 'deliveries') ||
+      hasPermission(state.currentUser, 'dashboard')
+  );
 
-  state.unsubscribe.push(subscribeCollection('settings', [orderBy('createdAt', 'desc')], (rows) => {
-    const current = rows.find((item) => item.scope === 'system');
-    if (current) {
-      state.settings = { ...state.settings, ...current };
-    }
+  safeSubscribe(
+    'settings',
+    [orderBy('createdAt', 'desc')],
+    (rows) => {
+      const current = rows.find((item) => item.scope === 'system');
+      if (current) {
+        state.settings = { ...state.settings, ...current };
+      }
 
-    if (els.storeNameSide) {
-      els.storeNameSide.textContent = state.settings.storeName || 'Gestão Comercial';
-    }
+      if (els.storeNameSide) {
+        els.storeNameSide.textContent = state.settings.storeName || 'Gestão Comercial';
+      }
 
-    renderSettings();
-    renderDashboard();
-    notificationsModule.generateSystemNotifications();
-    notificationsModule.updateBellBadge();
-  }));
+      renderSettings();
+      renderDashboard();
+      notificationsModule.generateSystemNotifications();
+      notificationsModule.updateBellBadge();
+    },
+    true
+  );
 
-  state.unsubscribe.push(subscribeCollection('inventory_movements', [orderBy('createdAt', 'desc')], (rows) => {
-    state.inventoryMovements = rows;
-    renderProducts();
-  }));
+  safeSubscribe(
+    'inventory_movements',
+    [orderBy('createdAt', 'desc')],
+    (rows) => {
+      state.inventoryMovements = rows;
+      renderProducts();
+    },
+    hasPermission(state.currentUser, 'products') ||
+      hasPermission(state.currentUser, 'reports')
+  );
 
-  state.unsubscribe.push(subscribeCollection('audit_logs', [orderBy('createdAt', 'desc')], (rows) => {
-    state.auditLogs = rows;
-    renderSettings();
-    renderDashboard();
-  }));
+  safeSubscribe(
+    'audit_logs',
+    [orderBy('createdAt', 'desc')],
+    (rows) => {
+      state.auditLogs = rows;
+      renderSettings();
+      renderDashboard();
+    },
+    hasPermission(state.currentUser, 'settings') ||
+      ['master', 'admin'].includes(String(state.currentUser?.accessLevel || '').toLowerCase())
+  );
 
-  state.unsubscribe.push(subscribeCollection('clients', [orderBy('name')], (rows) => {
-    state.clients = rows.filter((item) => item.deleted !== true);
-    renderSales();
-    renderDeliveries();
-    renderClients();
-    renderReports();
-  }));
+  safeSubscribe(
+    'clients',
+    [orderBy('name')],
+    (rows) => {
+      state.clients = rows.filter((item) => item.deleted !== true);
+      renderSales();
+      renderDeliveries();
+      renderClients();
+      renderReports();
+    },
+    hasPermission(state.currentUser, 'clients') ||
+      hasPermission(state.currentUser, 'sales') ||
+      hasPermission(state.currentUser, 'deliveries')
+  );
 
-  state.unsubscribe.push(subscribeCollection('suppliers', [orderBy('name')], (rows) => {
-    state.suppliers = rows.filter((item) => item.deleted !== true);
-    renderSuppliers();
-    renderProducts();
-    renderPayables();
-    renderPurchases();
-  }));
+  safeSubscribe(
+    'suppliers',
+    [orderBy('name')],
+    (rows) => {
+      state.suppliers = rows.filter((item) => item.deleted !== true);
+      renderSuppliers();
+      renderProducts();
+      renderPayables();
+      renderPurchases();
+    },
+    hasPermission(state.currentUser, 'suppliers') ||
+      hasPermission(state.currentUser, 'products') ||
+      hasPermission(state.currentUser, 'purchases') ||
+      hasPermission(state.currentUser, 'payables')
+  );
 
-  state.unsubscribe.push(subscribeCollection('cash_sessions', [orderBy('openedAt', 'desc')], (rows) => {
-    state.cashSessions = rows;
-    renderSettings();
-    renderDashboard();
-  }));
+  safeSubscribe(
+    'cash_sessions',
+    [orderBy('openedAt', 'desc')],
+    (rows) => {
+      state.cashSessions = rows;
+      renderSettings();
+      renderDashboard();
+    },
+    hasPermission(state.currentUser, 'settings') ||
+      hasPermission(state.currentUser, 'dashboard') ||
+      hasPermission(state.currentUser, 'sales')
+  );
 
-  state.unsubscribe.push(subscribeCollection('accounts_receivable', [orderBy('createdAt', 'desc')], (rows) => {
-    state.accountsReceivable = rows;
-    renderClients();
-    renderDashboard();
-    notificationsModule.generateSystemNotifications();
-    notificationsModule.updateBellBadge();
-  }));
+  safeSubscribe(
+    'accounts_receivable',
+    [orderBy('createdAt', 'desc')],
+    (rows) => {
+      state.accountsReceivable = rows;
+      renderClients();
+      renderDashboard();
+      notificationsModule.generateSystemNotifications();
+      notificationsModule.updateBellBadge();
+    },
+    hasPermission(state.currentUser, 'clients') ||
+      hasPermission(state.currentUser, 'sales') ||
+      hasPermission(state.currentUser, 'dashboard')
+  );
 
-  state.unsubscribe.push(subscribeCollection('accounts_payable', [orderBy('createdAt', 'desc')], (rows) => {
-    state.accountsPayable = rows;
-    renderPayables();
-    renderDashboard();
-    notificationsModule.generateSystemNotifications();
-    notificationsModule.updateBellBadge();
-  }));
+  safeSubscribe(
+    'accounts_payable',
+    [orderBy('createdAt', 'desc')],
+    (rows) => {
+      state.accountsPayable = rows;
+      renderPayables();
+      renderDashboard();
+      notificationsModule.generateSystemNotifications();
+      notificationsModule.updateBellBadge();
+    },
+    hasPermission(state.currentUser, 'payables') ||
+      hasPermission(state.currentUser, 'purchases') ||
+      hasPermission(state.currentUser, 'dashboard')
+  );
 
-  state.unsubscribe.push(subscribeCollection('purchase_orders', [orderBy('createdAt', 'desc')], (rows) => {
-    state.purchaseOrders = rows;
-    renderPurchases();
-  }));
+  safeSubscribe(
+    'purchase_orders',
+    [orderBy('createdAt', 'desc')],
+    (rows) => {
+      state.purchaseOrders = rows;
+      renderPurchases();
+    },
+    hasPermission(state.currentUser, 'purchases') ||
+      hasPermission(state.currentUser, 'payables') ||
+      hasPermission(state.currentUser, 'dashboard')
+  );
 
-  state.unsubscribe.push(subscribeCollection('purchases', [orderBy('receivedAt', 'desc')], (rows) => {
-    state.purchases = rows;
-    renderPurchases();
-  }));
+  safeSubscribe(
+    'purchases',
+    [orderBy('receivedAt', 'desc')],
+    (rows) => {
+      state.purchases = rows;
+      renderPurchases();
+    },
+    hasPermission(state.currentUser, 'purchases') ||
+      hasPermission(state.currentUser, 'payables') ||
+      hasPermission(state.currentUser, 'dashboard')
+  );
 
-  state.unsubscribe.push(subscribeCollection('notifications', [orderBy('createdAt', 'desc')], (rows) => {
-    state.notifications = rows.filter((item) => item.deleted !== true);
-    notificationsModule.updateBellBadge();
-  }));
+  safeSubscribe(
+    'notifications',
+    [orderBy('createdAt', 'desc')],
+    (rows) => {
+      state.notifications = rows.filter((item) => item.deleted !== true);
+      notificationsModule.updateBellBadge();
+    },
+    true
+  );
 }
 
 async function handleLogin(event) {
