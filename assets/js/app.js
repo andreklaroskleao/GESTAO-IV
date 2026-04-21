@@ -25,6 +25,7 @@ import { createPurchasesModule } from './modules/purchases.js';
 import { createCashierModule } from './modules/cashier.js';
 import { createAccountsModule } from './modules/accounts.js';
 import { createNotificationsModule } from './modules/notifications.js';
+import { createOperationalUxModule } from './modules/operational-ux.js';
 
 import {
   login,
@@ -136,6 +137,8 @@ const state = {
 };
 
 const SIDEBAR_STORAGE_KEY = 'gestao-sidebar-collapsed';
+
+const operationalUxModule = createOperationalUxModule({ state, tabEls });
 
 function isMobileViewport() {
   return window.matchMedia('(max-width: 920px)').matches;
@@ -391,6 +394,23 @@ pwaModule.registerServiceWorker();
 pwaModule.bindInstallPrompt();
 pwaModule.bindOnlineOfflineFeedback();
 
+operationalUxModule.init({
+  tabs: [
+    'dashboard',
+    'sales',
+    'products',
+    'reports',
+    'deliveries',
+    'clients',
+    'suppliers',
+    'purchases',
+    'payables',
+    'users',
+    'settings'
+  ],
+  openTab: activateTab
+});
+
 function setScreen(isAuthenticated) {
   if (!els.loginScreen || !els.appScreen) return;
   els.loginScreen.classList.toggle('active', !isAuthenticated);
@@ -428,6 +448,7 @@ function activateTab(tab) {
   if (els.pageSubtitle) els.pageSubtitle.textContent = `Área: ${titleMap[tab] || tab}.`;
 
   renderActiveTab();
+  operationalUxModule.onTabActivated(tab);
 }
 
 function renderBlockedPanel(tab) {
@@ -684,8 +705,7 @@ function bootstrapData() {
     },
     true
   );
-
-  safeSubscribe(
+safeSubscribe(
     'inventory_movements',
     [orderBy('createdAt', 'desc')],
     (rows) => {
@@ -1019,7 +1039,6 @@ function buildGlobalSearchIndex() {
 
   return entries;
 }
-
 function performGlobalSearch(rawTerm) {
   const term = String(rawTerm || '').trim().toLowerCase();
 
