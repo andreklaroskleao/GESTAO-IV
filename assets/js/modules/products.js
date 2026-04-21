@@ -26,11 +26,19 @@ export function createProductsModule(ctx) {
   }
 
   function getCategories() {
-    return [...new Set(getRows().map((item) => String(item.category || '').trim()).filter(Boolean))].sort();
+    return [...new Set(
+      getRows()
+        .map((item) => String(item.category || '').trim())
+        .filter(Boolean)
+    )].sort();
   }
 
   function getSuppliers() {
-    return [...new Set(getRows().map((item) => String(item.supplier || '').trim()).filter(Boolean))].sort();
+    return [...new Set(
+      getRows()
+        .map((item) => String(item.supplier || '').trim())
+        .filter(Boolean)
+    )].sort();
   }
 
   function getLowStockThreshold() {
@@ -107,8 +115,8 @@ export function createProductsModule(ctx) {
     if (!normalized) return false;
 
     return getRows().some((item) => {
-      return String(item.id || '') !== String(ignoreId || '')
-        && String(item.barcode || '').trim() === normalized;
+      return String(item.id || '') !== String(ignoreId || '') &&
+        String(item.barcode || '').trim() === normalized;
     });
   }
 
@@ -379,7 +387,7 @@ export function createProductsModule(ctx) {
                 ${
                   rows.map((item) => `
                     <tr>
-                      <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
+                      <td>${escapeHtml(item.createdAt ? new Date(item.createdAt?.seconds ? item.createdAt.seconds * 1000 : item.createdAt).toLocaleString('pt-BR') : '-')}</td>
                       <td>${escapeHtml(item.type || '-')}</td>
                       <td>${escapeHtml(String(item.quantity ?? '-'))}</td>
                       <td>${escapeHtml(String(item.previousQuantity ?? '-'))}</td>
