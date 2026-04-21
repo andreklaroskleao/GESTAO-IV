@@ -334,6 +334,11 @@ export function createSalesModule(ctx) {
     const sync = () => {
       const checked = checkbox.checked;
       wrap.style.display = checked ? '' : 'none';
+
+      if (checked && state.selectedSaleClient?.cpf && !input.value) {
+        input.value = state.selectedSaleClient.cpf;
+      }
+
       if (!checked) input.value = '';
     };
 
@@ -353,15 +358,15 @@ export function createSalesModule(ctx) {
 
       const paymentMethod = tabEls.sales.querySelector('#sale-payment-method')?.value || 'Dinheiro';
       const notes = tabEls.sales.querySelector('textarea[name="notes"]')?.value || '';
-
-      const manualCustomerName = tabEls.sales.querySelector('#sale-customer-name')?.value || '';
-      const selectedClientName = state.selectedSaleClient?.name || '';
-      const customerName = String(manualCustomerName || selectedClientName).trim() || 'Não identificado';
-
+      const customerNameRaw = tabEls.sales.querySelector('#sale-customer-name')?.value || '';
       const includeCpf = Boolean(tabEls.sales.querySelector('#sale-include-cpf')?.checked);
-      const manualCustomerCpf = tabEls.sales.querySelector('#sale-customer-cpf')?.value || '';
-      const selectedClientCpf = state.selectedSaleClient?.cpf || state.selectedSaleClient?.document || '';
-      const customerCpf = includeCpf ? String(manualCustomerCpf || selectedClientCpf).trim() : '';
+      const customerCpfRaw = tabEls.sales.querySelector('#sale-customer-cpf')?.value || '';
+
+      const selectedClientName = String(state.selectedSaleClient?.name || '').trim();
+      const selectedClientCpf = String(state.selectedSaleClient?.cpf || state.selectedSaleClient?.document || '').trim();
+
+      const customerName = String(customerNameRaw).trim() || selectedClientName || 'Não identificado';
+      const customerCpf = includeCpf ? (String(customerCpfRaw).trim() || selectedClientCpf) : '';
 
       const { subtotal, discount, total, amountPaid, change } = calculateCartTotal();
 
@@ -384,7 +389,7 @@ export function createSalesModule(ctx) {
       const payload = {
         customerName,
         customerCpf,
-        customerId: state.selectedSaleClient?.id || '',
+        customerId: String(state.selectedSaleClient?.id || ''),
         paymentMethod,
         subtotal,
         discount,
@@ -486,7 +491,14 @@ export function createSalesModule(ctx) {
         state.selectedSaleClient = client || null;
 
         const input = tabEls.sales.querySelector('#sale-customer-name');
+        const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
+        const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
+
         if (input) input.value = client?.name || '';
+
+        if (cpfCheck?.checked && cpfInput && !cpfInput.value) {
+          cpfInput.value = client?.cpf || client?.document || '';
+        }
 
         closeModal();
       }
@@ -495,7 +507,6 @@ export function createSalesModule(ctx) {
 
   function render() {
     const { subtotal, discount, total, change } = calculateCartTotal();
-    const selectedCustomerName = state.selectedSaleClient?.name || '';
 
     tabEls.sales.innerHTML = `
       <div class="section-header">
@@ -512,7 +523,7 @@ export function createSalesModule(ctx) {
       <div class="filters-grid">
         <label>
           Cliente
-          <input id="sale-customer-name" value="${escapeHtml(selectedCustomerName)}" />
+          <input id="sale-customer-name" value="${escapeHtml(state.selectedSaleClient?.name || '')}" />
         </label>
 
         <label style="display:flex; align-items:end; gap:8px;">
@@ -529,7 +540,7 @@ export function createSalesModule(ctx) {
       <div class="filters-grid">
         <label>
           Produto
-          <input id="sale-product-search" placeholder="Pesquise um produto" />
+          <input id="sale-product-search" placeholder="Digite nome ou código de barras para listar resultados." />
         </label>
       </div>
 
@@ -559,12 +570,12 @@ export function createSalesModule(ctx) {
           Valor pago
           <input type="number" name="amountPaid" min="0" step="0.01" value="0" />
         </label>
-      </div>
 
-      <label style="display:block; margin-top:12px;">
-        Observações
-        <textarea name="notes" rows="3"></textarea>
-      </label>
+        <label>
+          Observações
+          <textarea name="notes" rows="3"></textarea>
+        </label>
+      </div>
 
       <div class="filters-grid" style="margin-top:16px;">
         <div><strong>Subtotal</strong><br><span id="sale-subtotal">${currency(subtotal)}</span></div>
@@ -583,13 +594,13 @@ export function createSalesModule(ctx) {
       </div>
 
       <div class="filters-grid">
-        <input id="sales-filter-customer" placeholder="Cliente" value="${escapeHtml(saleFilters.customer)}" />
+        <input id="sales-filter-customer" placeholder="Cliente" />
         <select id="sales-filter-payment">
           <option value="">Todas as formas</option>
-          ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}" ${saleFilters.paymentMethod === method ? 'selected' : ''}>${escapeHtml(method)}</option>`).join('')}
+          ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}">${escapeHtml(method)}</option>`).join('')}
         </select>
-        <input id="sales-filter-date-from" type="date" value="${escapeHtml(saleFilters.dateFrom)}" />
-        <input id="sales-filter-date-to" type="date" value="${escapeHtml(saleFilters.dateTo)}" />
+        <input id="sales-filter-date-from" type="date" />
+        <input id="sales-filter-date-to" type="date" />
         <button class="btn btn-secondary" type="button" id="sales-filter-apply">Filtrar</button>
         <button class="btn btn-secondary" type="button" id="sales-filter-clear">Limpar</button>
       </div>
@@ -625,36 +636,52 @@ export function createSalesModule(ctx) {
       }
     });
 
-    bindAsyncButton(tabEls.sales.querySelector('#sale-select-client-btn'), async () => {
-      openClientPicker();
-    }, { busyLabel: 'Abrindo...' });
+    bindAsyncButton(
+      tabEls.sales.querySelector('#sale-select-client-btn'),
+      async () => {
+        openClientPicker();
+      },
+      { busyLabel: 'Abrindo...' }
+    );
 
-    bindAsyncButton(tabEls.sales.querySelector('#sale-clear-client-btn'), async () => {
-      state.selectedSaleClient = null;
+    bindAsyncButton(
+      tabEls.sales.querySelector('#sale-clear-client-btn'),
+      async () => {
+        state.selectedSaleClient = null;
 
-      const clientInput = tabEls.sales.querySelector('#sale-customer-name');
-      const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
-      const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
+        const clientInput = tabEls.sales.querySelector('#sale-customer-name');
+        const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
+        const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
 
-      if (clientInput) clientInput.value = '';
-      if (cpfCheck) cpfCheck.checked = false;
-      if (cpfInput) cpfInput.value = '';
+        if (clientInput) clientInput.value = '';
+        if (cpfCheck) cpfCheck.checked = false;
+        if (cpfInput) cpfInput.value = '';
 
-      bindCpfToggle();
-      showToast('Cliente limpo.', 'info');
-    }, { busyLabel: 'Limpando...' });
+        bindCpfToggle();
+        showToast('Cliente limpo.', 'info');
+      },
+      { busyLabel: 'Limpando...' }
+    );
 
     tabEls.sales.querySelector('#sale-payment-method')?.addEventListener('change', updateSaleSummary);
     tabEls.sales.querySelector('input[name="discount"]')?.addEventListener('input', updateSaleSummary);
     tabEls.sales.querySelector('input[name="amountPaid"]')?.addEventListener('input', updateSaleSummary);
 
-    bindAsyncButton(tabEls.sales.querySelector('#finish-sale-btn'), async () => {
-      await finishSale();
-    }, { busyLabel: 'Finalizando...' });
+    bindAsyncButton(
+      tabEls.sales.querySelector('#finish-sale-btn'),
+      async () => {
+        await finishSale();
+      },
+      { busyLabel: 'Finalizando...' }
+    );
 
-    bindAsyncButton(tabEls.sales.querySelector('#clear-cart-btn'), async () => {
-      clearCartWithFeedback();
-    }, { busyLabel: 'Limpando...' });
+    bindAsyncButton(
+      tabEls.sales.querySelector('#clear-cart-btn'),
+      async () => {
+        clearCartWithFeedback();
+      },
+      { busyLabel: 'Limpando...' }
+    );
 
     tabEls.sales.querySelector('#sales-filter-apply')?.addEventListener('click', () => {
       saleFilters.customer = tabEls.sales.querySelector('#sales-filter-customer')?.value || '';
@@ -664,10 +691,14 @@ export function createSalesModule(ctx) {
       renderHistory();
     });
 
-    bindAsyncButton(tabEls.sales.querySelector('#sales-filter-clear'), async () => {
-      saleFilters = { customer: '', paymentMethod: '', dateFrom: '', dateTo: '' };
-      render();
-    }, { busyLabel: 'Limpando...' });
+    bindAsyncButton(
+      tabEls.sales.querySelector('#sales-filter-clear'),
+      async () => {
+        saleFilters = { customer: '', paymentMethod: '', dateFrom: '', dateTo: '' };
+        render();
+      },
+      { busyLabel: 'Limpando...' }
+    );
 
     renderSearchResults();
     renderCart();
