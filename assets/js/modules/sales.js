@@ -26,6 +26,16 @@ export function createSalesModule(ctx) {
   let isFinishingSale = false;
   let searchTerm = '';
 
+  let saleFormState = {
+    customerName: '',
+    includeCpf: false,
+    customerCpf: '',
+    paymentMethod: paymentMethods?.[0] || 'Dinheiro',
+    discount: '0',
+    amountPaid: '0',
+    notes: ''
+  };
+
   function focusSearchInput() {
     const input = tabEls.sales?.querySelector('#sale-product-search');
     if (input) {
@@ -67,6 +77,24 @@ export function createSalesModule(ctx) {
     ).trim();
   }
 
+  function syncSaleFormStateFromDom() {
+    const customerNameInput = tabEls.sales?.querySelector('#sale-customer-name');
+    const includeCpfInput = tabEls.sales?.querySelector('#sale-include-cpf');
+    const customerCpfInput = tabEls.sales?.querySelector('#sale-customer-cpf');
+    const paymentMethodInput = tabEls.sales?.querySelector('#sale-payment-method');
+    const discountInput = tabEls.sales?.querySelector('input[name="discount"]');
+    const amountPaidInput = tabEls.sales?.querySelector('input[name="amountPaid"]');
+    const notesInput = tabEls.sales?.querySelector('textarea[name="notes"]');
+
+    if (customerNameInput) saleFormState.customerName = customerNameInput.value || '';
+    if (includeCpfInput) saleFormState.includeCpf = Boolean(includeCpfInput.checked);
+    if (customerCpfInput) saleFormState.customerCpf = customerCpfInput.value || '';
+    if (paymentMethodInput) saleFormState.paymentMethod = paymentMethodInput.value || (paymentMethods?.[0] || 'Dinheiro');
+    if (discountInput) saleFormState.discount = discountInput.value || '0';
+    if (amountPaidInput) saleFormState.amountPaid = amountPaidInput.value || '0';
+    if (notesInput) saleFormState.notes = notesInput.value || '';
+  }
+
   function clearCartWithFeedback() {
     state.cart = [];
     render();
@@ -74,22 +102,21 @@ export function createSalesModule(ctx) {
   }
 
   function calculateCartTotal() {
-    const discountInput = tabEls.sales?.querySelector('input[name="discount"]');
-    const paidInput = tabEls.sales?.querySelector('input[name="amountPaid"]');
-
     const subtotal = (state.cart || []).reduce((sum, item) => {
       return sum + (Number(item.salePrice || 0) * Number(item.quantity || 0));
     }, 0);
 
-    const discount = toNumber(discountInput?.value || 0);
+    const discount = toNumber(saleFormState.discount || 0);
     const total = Math.max(0, subtotal - discount);
-    const amountPaid = toNumber(paidInput?.value || 0);
+    const amountPaid = toNumber(saleFormState.amountPaid || 0);
     const change = Math.max(0, amountPaid - total);
 
     return { subtotal, discount, total, amountPaid, change };
   }
 
   function updateSaleSummary() {
+    syncSaleFormStateFromDom();
+
     const { subtotal, discount, total, change } = calculateCartTotal();
 
     tabEls.sales.querySelector('#sale-subtotal').textContent = currency(subtotal);
@@ -124,6 +151,8 @@ export function createSalesModule(ctx) {
   }
 
   function addProductToCart(productId) {
+    syncSaleFormStateFromDom();
+
     const product = getProductById(productId);
     if (!product) return;
 
@@ -153,6 +182,8 @@ export function createSalesModule(ctx) {
   }
 
   function changeCartQuantity(productId, delta) {
+    syncSaleFormStateFromDom();
+
     const row = getCartRow(productId);
     const stockQty = getAvailableStock(productId);
     if (!row) return;
@@ -281,6 +312,7 @@ export function createSalesModule(ctx) {
 
     cartEl.querySelectorAll('[data-cart-remove]').forEach((btn) => {
       btn.addEventListener('click', () => {
+        syncSaleFormStateFromDom();
         state.cart = state.cart.filter((item) => item.id !== btn.dataset.cartRemove);
         render();
       });
@@ -339,14 +371,18 @@ export function createSalesModule(ctx) {
     if (!checkbox || !wrap || !input) return;
 
     const sync = () => {
-      const checked = checkbox.checked;
-      wrap.style.display = checked ? '' : 'none';
+      saleFormState.includeCpf = Boolean(checkbox.checked);
+      wrap.style.display = saleFormState.includeCpf ? '' : 'none';
 
-      if (checked && !String(input.value || '').trim()) {
+      if (saleFormState.includeCpf && !String(input.value || '').trim()) {
         input.value = getSelectedClientCpf();
       }
 
-      if (!checked) input.value = '';
+      if (!saleFormState.includeCpf) {
+        input.value = '';
+      }
+
+      saleFormState.customerCpf = input.value || '';
     };
 
     checkbox.addEventListener('change', sync);
@@ -358,27 +394,21 @@ export function createSalesModule(ctx) {
     isFinishingSale = true;
 
     try {
+      syncSaleFormStateFromDom();
+
       if (!(state.cart || []).length) {
         alert('Adicione pelo menos um produto à venda.');
         return;
       }
 
-      const paymentMethod = tabEls.sales.querySelector('#sale-payment-method')?.value || 'Dinheiro';
-      const notes = tabEls.sales.querySelector('textarea[name="notes"]')?.value || '';
-      const customerNameRaw = tabEls.sales.querySelector('#sale-customer-name')?.value || '';
-      const includeCpf = Boolean(tabEls.sales.querySelector('#sale-include-cpf')?.checked);
-      const customerCpfRaw = tabEls.sales.querySelector('#sale-customer-cpf')?.value || '';
-
       const selectedClientName = String(state.selectedSaleClient?.name || '').trim();
       const selectedClientCpf = getSelectedClientCpf();
 
-      const typedCustomerName = String(customerNameRaw).trim();
-      const typedCustomerCpf = String(customerCpfRaw).trim();
+      const typedCustomerName = String(saleFormState.customerName || '').trim();
+      const typedCustomerCpf = String(saleFormState.customerCpf || '').trim();
 
-      const customerName =
-        typedCustomerName || selectedClientName || 'Não identificado';
-
-      const customerCpf = includeCpf ? (typedCustomerCpf || selectedClientCpf) : '';
+      const customerName = typedCustomerName || selectedClientName || 'Não identificado';
+      const customerCpf = saleFormState.includeCpf ? (typedCustomerCpf || selectedClientCpf) : '';
 
       const { subtotal, discount, total, amountPaid, change } = calculateCartTotal();
 
@@ -402,13 +432,13 @@ export function createSalesModule(ctx) {
         customerName,
         customerCpf,
         customerId: state.selectedSaleClient?.id || '',
-        paymentMethod,
+        paymentMethod: saleFormState.paymentMethod || 'Dinheiro',
         subtotal,
         discount,
         total,
         amountPaid,
         change,
-        notes,
+        notes: saleFormState.notes || '',
         items,
         cashierName: state.currentUser?.fullName || '',
         deleted: false
@@ -436,19 +466,18 @@ export function createSalesModule(ctx) {
       state.selectedSaleClient = null;
       searchTerm = '';
 
+      saleFormState = {
+        customerName: '',
+        includeCpf: false,
+        customerCpf: '',
+        paymentMethod: paymentMethods?.[0] || 'Dinheiro',
+        discount: '0',
+        amountPaid: '0',
+        notes: ''
+      };
+
       const searchInput = tabEls.sales.querySelector('#sale-product-search');
       if (searchInput) searchInput.value = '';
-
-      tabEls.sales.querySelector('#sale-customer-name').value = '';
-      tabEls.sales.querySelector('#sale-payment-method').value = paymentMethods?.[0] || 'Dinheiro';
-      tabEls.sales.querySelector('input[name="discount"]').value = '0';
-      tabEls.sales.querySelector('input[name="amountPaid"]').value = '0';
-      tabEls.sales.querySelector('textarea[name="notes"]').value = '';
-
-      const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
-      const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
-      if (cpfCheck) cpfCheck.checked = false;
-      if (cpfInput) cpfInput.value = '';
 
       showToast('Venda finalizada com sucesso.', 'success');
       render();
@@ -501,12 +530,16 @@ export function createSalesModule(ctx) {
       target: '#sale-client-picker-host',
       onSelect: (client) => {
         state.selectedSaleClient = client || null;
+        saleFormState.customerName = client?.name || saleFormState.customerName || '';
+        if (saleFormState.includeCpf) {
+          saleFormState.customerCpf = String(client?.cpf || client?.document || '').trim();
+        }
 
         const input = tabEls.sales.querySelector('#sale-customer-name');
         const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
         const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
 
-        if (input) input.value = client?.name || '';
+        if (input) input.value = saleFormState.customerName;
 
         if (cpfCheck?.checked && cpfInput) {
           cpfInput.value = String(client?.cpf || client?.document || '').trim();
@@ -548,17 +581,17 @@ export function createSalesModule(ctx) {
             <div class="form-grid" style="margin-bottom:14px;">
               <label style="grid-column:1 / -1;">
                 Cliente
-                <input id="sale-customer-name" type="text" value="${escapeHtml(state.selectedSaleClient?.name || '')}" placeholder="Deixe em branco para não identificado" />
+                <input id="sale-customer-name" type="text" value="${escapeHtml(saleFormState.customerName)}" placeholder="Deixe em branco para não identificado" />
               </label>
 
               <label style="grid-column:1 / -1; display:flex; align-items:center; gap:8px;">
-                <input id="sale-include-cpf" type="checkbox" style="width:auto;" />
+                <input id="sale-include-cpf" type="checkbox" style="width:auto;" ${saleFormState.includeCpf ? 'checked' : ''} />
                 <span>Inserir CPF no cupom</span>
               </label>
 
               <label id="sale-cpf-wrap" style="grid-column:1 / -1; display:none;">
                 CPF
-                <input id="sale-customer-cpf" type="text" placeholder="Digite o CPF do cliente" />
+                <input id="sale-customer-cpf" type="text" value="${escapeHtml(saleFormState.customerCpf)}" placeholder="Digite o CPF do cliente" />
               </label>
             </div>
 
@@ -582,23 +615,23 @@ export function createSalesModule(ctx) {
               <label>
                 Forma de pagamento
                 <select id="sale-payment-method">
-                  ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}">${escapeHtml(method)}</option>`).join('')}
+                  ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}" ${saleFormState.paymentMethod === method ? 'selected' : ''}>${escapeHtml(method)}</option>`).join('')}
                 </select>
               </label>
 
               <label>
                 Desconto
-                <input name="discount" type="number" step="0.01" min="0" value="0" />
+                <input name="discount" type="number" step="0.01" min="0" value="${escapeHtml(String(saleFormState.discount))}" />
               </label>
 
               <label>
                 Valor pago
-                <input name="amountPaid" type="number" step="0.01" min="0" value="0" />
+                <input name="amountPaid" type="number" step="0.01" min="0" value="${escapeHtml(String(saleFormState.amountPaid))}" />
               </label>
 
               <label style="grid-column:1 / -1;">
                 Observações
-                <textarea name="notes"></textarea>
+                <textarea name="notes">${escapeHtml(saleFormState.notes)}</textarea>
               </label>
             </div>
 
@@ -665,12 +698,54 @@ export function createSalesModule(ctx) {
       }
     });
 
+    const customerNameInput = tabEls.sales.querySelector('#sale-customer-name');
+    const includeCpfInput = tabEls.sales.querySelector('#sale-include-cpf');
+    const customerCpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
+    const paymentMethodInput = tabEls.sales.querySelector('#sale-payment-method');
+    const discountInput = tabEls.sales.querySelector('input[name="discount"]');
+    const amountPaidInput = tabEls.sales.querySelector('input[name="amountPaid"]');
+    const notesInput = tabEls.sales.querySelector('textarea[name="notes"]');
+
+    customerNameInput?.addEventListener('input', (event) => {
+      saleFormState.customerName = event.currentTarget.value || '';
+    });
+
+    includeCpfInput?.addEventListener('change', () => {
+      saleFormState.includeCpf = Boolean(includeCpfInput.checked);
+    });
+
+    customerCpfInput?.addEventListener('input', (event) => {
+      saleFormState.customerCpf = event.currentTarget.value || '';
+    });
+
+    paymentMethodInput?.addEventListener('change', (event) => {
+      saleFormState.paymentMethod = event.currentTarget.value || (paymentMethods?.[0] || 'Dinheiro');
+      updateSaleSummary();
+    });
+
+    discountInput?.addEventListener('input', (event) => {
+      saleFormState.discount = event.currentTarget.value || '0';
+      updateSaleSummary();
+    });
+
+    amountPaidInput?.addEventListener('input', (event) => {
+      saleFormState.amountPaid = event.currentTarget.value || '0';
+      updateSaleSummary();
+    });
+
+    notesInput?.addEventListener('input', (event) => {
+      saleFormState.notes = event.currentTarget.value || '';
+    });
+
     bindAsyncButton(tabEls.sales.querySelector('#sale-select-client-btn'), async () => {
       openClientPicker();
     }, { busyLabel: 'Abrindo...' });
 
     bindAsyncButton(tabEls.sales.querySelector('#sale-clear-client-btn'), async () => {
       state.selectedSaleClient = null;
+      saleFormState.customerName = '';
+      saleFormState.includeCpf = false;
+      saleFormState.customerCpf = '';
 
       const clientInput = tabEls.sales.querySelector('#sale-customer-name');
       const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
@@ -683,10 +758,6 @@ export function createSalesModule(ctx) {
       bindCpfToggle();
       showToast('Cliente limpo.', 'info');
     }, { busyLabel: 'Limpando...' });
-
-    tabEls.sales.querySelector('#sale-payment-method')?.addEventListener('change', updateSaleSummary);
-    tabEls.sales.querySelector('input[name="discount"]')?.addEventListener('input', updateSaleSummary);
-    tabEls.sales.querySelector('input[name="amountPaid"]')?.addEventListener('input', updateSaleSummary);
 
     bindAsyncButton(tabEls.sales.querySelector('#finish-sale-btn'), async () => {
       await finishSale();
