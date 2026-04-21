@@ -2299,11 +2299,15 @@ body.theme-light #tab-sales option {
   margin: 0 4px;
   font-weight: 700;
 }
+
+
 #notifications-bell-btn {
   position: relative;
 }
 
-#notifications-badge {
+#notifications-badge,
+.badge,
+.badge-counter {
   position: absolute;
   top: -6px;
   right: -6px;
