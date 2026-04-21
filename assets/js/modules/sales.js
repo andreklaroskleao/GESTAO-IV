@@ -319,6 +319,74 @@ export function createSalesModule(ctx) {
     });
   }
 
+  function cloneSaleItems(items = []) {
+    return (items || []).map((item) => ({
+      productId: item.productId || '',
+      name: item.name || '',
+      quantity: Number(item.quantity || 0),
+      unitPrice: Number(item.unitPrice || 0),
+      total: Number(item.total || 0)
+    }));
+  }
+
+  function calcItemsSubtotal(items = []) {
+    return items.reduce((sum, item) => {
+      return sum + (Number(item.unitPrice || 0) * Number(item.quantity || 0));
+    }, 0);
+  }
+
+  function buildItemsDiff(oldItems = [], newItems = []) {
+    const map = new Map();
+
+    oldItems.forEach((item) => {
+      const key = String(item.productId || '');
+      if (!key) return;
+
+      if (!map.has(key)) {
+        map.set(key, { oldQty: 0, newQty: 0 });
+      }
+
+      map.get(key).oldQty += Number(item.quantity || 0);
+    });
+
+    newItems.forEach((item) => {
+      const key = String(item.productId || '');
+      if (!key) return;
+
+      if (!map.has(key)) {
+        map.set(key, { oldQty: 0, newQty: 0 });
+      }
+
+      map.get(key).newQty += Number(item.quantity || 0);
+    });
+
+    return map;
+  }
+
+  async function applySaleItemsStockDiff(oldItems = [], newItems = []) {
+    const diffMap = buildItemsDiff(oldItems, newItems);
+
+    for (const [productId, diff] of diffMap.entries()) {
+      const product = getProductById(productId);
+      if (!product) continue;
+
+      const delta = Number(diff.newQty || 0) - Number(diff.oldQty || 0);
+
+      if (delta === 0) continue;
+
+      const currentStock = Number(product.quantity || 0);
+      const nextStock = currentStock - delta;
+
+      if (nextStock < 0) {
+        throw new Error(`Estoque insuficiente para o produto "${product.name || productId}".`);
+      }
+
+      await updateByPath('products', productId, {
+        quantity: nextStock
+      });
+    }
+  }
+
   function openEditSaleModal(saleId) {
     const sale = (state.sales || []).find((item) => item.id === saleId && item.deleted !== true);
     if (!sale) return;
@@ -326,9 +394,183 @@ export function createSalesModule(ctx) {
     const modalRoot = document.getElementById('modal-root');
     if (!modalRoot) return;
 
+    let editingItems = cloneSaleItems(sale.items || []);
+    let productSearch = '';
+
+    function recalcAndRender() {
+      const subtotal = calcItemsSubtotal(editingItems);
+      const discount = toNumber(modalRoot.querySelector('input[name="discount"]')?.value || sale.discount || 0);
+      const total = Math.max(0, subtotal - discount);
+      const amountPaid = toNumber(modalRoot.querySelector('input[name="amountPaid"]')?.value || sale.amountPaid || 0);
+      const change = Math.max(0, amountPaid - total);
+
+      const itemsHost = modalRoot.querySelector('#edit-sale-items-host');
+      const totalsHost = modalRoot.querySelector('#edit-sale-totals');
+      const resultsHost = modalRoot.querySelector('#edit-sale-product-results');
+
+      if (itemsHost) {
+        itemsHost.innerHTML = editingItems.length
+          ? editingItems.map((item) => `
+              <div class="cart-item">
+                <div class="cart-line">
+                  <strong>${escapeHtml(item.name || '')}</strong>
+                  <span>${currency(Number(item.unitPrice || 0))}</span>
+                </div>
+                <div class="cart-line">
+                  <div class="cart-actions">
+                    <button class="icon-action-btn" type="button" data-edit-sale-item-decrease="${item.productId}">−</button>
+                    <strong>${Number(item.quantity || 0)}</strong>
+                    <button class="icon-action-btn" type="button" data-edit-sale-item-increase="${item.productId}">+</button>
+                  </div>
+                  <button class="icon-action-btn" type="button" data-edit-sale-item-remove="${item.productId}">🗑️</button>
+                </div>
+              </div>
+            `).join('')
+          : `
+              <div class="empty-state">
+                <strong>Nenhum item</strong>
+                <span>Adicione produtos à venda.</span>
+              </div>
+            `;
+      }
+
+      if (totalsHost) {
+        totalsHost.innerHTML = `
+          <div class="summary-line"><span>Subtotal</span><strong>${currency(subtotal)}</strong></div>
+          <div class="summary-line"><span>Desconto</span><strong>${currency(discount)}</strong></div>
+          <div class="summary-line total"><span>Total</span><strong>${currency(total)}</strong></div>
+          <div class="summary-line"><span>Troco</span><strong>${currency(change)}</strong></div>
+        `;
+      }
+
+      if (resultsHost) {
+        const term = String(productSearch || '').trim().toLowerCase();
+
+        if (!term) {
+          resultsHost.innerHTML = `
+            <div class="empty-state">
+              <strong>Pesquise um produto</strong>
+              <span>Digite nome ou código de barras para adicionar item.</span>
+            </div>
+          `;
+        } else {
+          const results = getActiveProducts()
+            .filter((product) =>
+              [product.name, product.barcode, product.brand, product.supplier]
+                .join(' ')
+                .toLowerCase()
+                .includes(term)
+            )
+            .slice(0, 8);
+
+          resultsHost.innerHTML =
+            results.map((product) => `
+              <div class="list-item">
+                <strong>${escapeHtml(product.name)}</strong>
+                <span>${escapeHtml(product.barcode || 'Sem código')} · Estoque: ${product.quantity} · ${currency(product.salePrice || 0)}</span>
+                <div class="form-actions">
+                  <button class="btn btn-secondary" type="button" data-edit-sale-add-product="${product.id}">
+                    Adicionar
+                  </button>
+                </div>
+              </div>
+            `).join('') || `
+              <div class="empty-state">
+                <strong>Nenhum produto encontrado</strong>
+                <span>Refine sua pesquisa.</span>
+              </div>
+            `;
+        }
+      }
+
+      modalRoot.querySelectorAll('[data-edit-sale-item-decrease]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const productId = btn.dataset.editSaleItemDecrease;
+          const row = editingItems.find((item) => item.productId === productId);
+          if (!row) return;
+
+          row.quantity = Math.max(0, Number(row.quantity || 0) - 1);
+          editingItems = editingItems.filter((item) => Number(item.quantity || 0) > 0);
+          editingItems.forEach((item) => {
+            item.total = Number(item.unitPrice || 0) * Number(item.quantity || 0);
+          });
+          recalcAndRender();
+        });
+      });
+
+      modalRoot.querySelectorAll('[data-edit-sale-item-increase]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const productId = btn.dataset.editSaleItemIncrease;
+          const row = editingItems.find((item) => item.productId === productId);
+          const product = getProductById(productId);
+          if (!row || !product) return;
+
+          const originalQty = Number(
+            (sale.items || []).find((item) => item.productId === productId)?.quantity || 0
+          );
+          const currentEditedQty = Number(row.quantity || 0);
+          const extraNeeded = currentEditedQty + 1 - originalQty;
+          const availableNow = Number(product.quantity || 0);
+
+          if (extraNeeded > availableNow) {
+            showToast('Estoque insuficiente para aumentar este item.', 'error');
+            return;
+          }
+
+          row.quantity += 1;
+          row.total = Number(row.unitPrice || 0) * Number(row.quantity || 0);
+          recalcAndRender();
+        });
+      });
+
+      modalRoot.querySelectorAll('[data-edit-sale-item-remove]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const productId = btn.dataset.editSaleItemRemove;
+          editingItems = editingItems.filter((item) => item.productId !== productId);
+          recalcAndRender();
+        });
+      });
+
+      modalRoot.querySelectorAll('[data-edit-sale-add-product]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const productId = btn.dataset.editSaleAddProduct;
+          const product = getProductById(productId);
+          if (!product) return;
+
+          const existing = editingItems.find((item) => item.productId === productId);
+          const originalQty = Number(
+            (sale.items || []).find((item) => item.productId === productId)?.quantity || 0
+          );
+          const currentEditedQty = Number(existing?.quantity || 0);
+          const extraNeeded = currentEditedQty + 1 - originalQty;
+          const availableNow = Number(product.quantity || 0);
+
+          if (extraNeeded > availableNow) {
+            showToast('Estoque insuficiente para adicionar este item.', 'error');
+            return;
+          }
+
+          if (existing) {
+            existing.quantity += 1;
+            existing.total = Number(existing.unitPrice || 0) * Number(existing.quantity || 0);
+          } else {
+            editingItems.push({
+              productId: product.id,
+              name: product.name,
+              quantity: 1,
+              unitPrice: Number(product.salePrice || 0),
+              total: Number(product.salePrice || 0)
+            });
+          }
+
+          recalcAndRender();
+        });
+      });
+    }
+
     modalRoot.innerHTML = `
       <div class="modal-backdrop" id="edit-sale-modal-backdrop">
-        <div class="modal-card">
+        <div class="modal-card" style="max-width:960px;">
           <div class="section-header">
             <h2>Editar venda</h2>
             <button class="btn btn-secondary" type="button" id="edit-sale-close-btn">Fechar</button>
@@ -371,6 +613,22 @@ export function createSalesModule(ctx) {
               <textarea name="notes">${escapeHtml(sale.notes || '')}</textarea>
             </label>
 
+            <div style="grid-column:1 / -1;">
+              <div class="section-header">
+                <h3>Itens da venda</h3>
+              </div>
+              <div id="edit-sale-items-host" class="card-scroll-y"></div>
+            </div>
+
+            <label style="grid-column:1 / -1;">
+              Pesquisar produto para adicionar
+              <input id="edit-sale-product-search" type="text" placeholder="Digite nome ou código de barras" />
+            </label>
+
+            <div id="edit-sale-product-results" style="grid-column:1 / -1;"></div>
+
+            <div id="edit-sale-totals" class="summary-box" style="grid-column:1 / -1;"></div>
+
             <div class="form-actions" style="grid-column:1 / -1;">
               <button class="btn btn-primary" type="submit">Salvar alterações</button>
             </div>
@@ -388,37 +646,68 @@ export function createSalesModule(ctx) {
       if (event.target.id === 'edit-sale-modal-backdrop') closeModal();
     });
 
+    modalRoot.querySelector('#edit-sale-product-search')?.addEventListener('input', (event) => {
+      productSearch = event.currentTarget.value || '';
+      recalcAndRender();
+    });
+
+    modalRoot.querySelector('input[name="discount"]')?.addEventListener('input', recalcAndRender);
+    modalRoot.querySelector('input[name="amountPaid"]')?.addEventListener('input', recalcAndRender);
+
     modalRoot.querySelector('#edit-sale-form')?.addEventListener('submit', async (event) => {
       event.preventDefault();
 
       const form = event.currentTarget;
       const values = Object.fromEntries(new FormData(form).entries());
 
-      const subtotal = Number(sale.subtotal || 0);
+      const subtotal = calcItemsSubtotal(editingItems);
       const discount = toNumber(values.discount || 0);
       const total = Math.max(0, subtotal - discount);
       const amountPaid = toNumber(values.amountPaid || 0);
       const change = Math.max(0, amountPaid - total);
+
+      if (!editingItems.length) {
+        alert('A venda precisa ter pelo menos 1 item.');
+        return;
+      }
 
       if (amountPaid < total) {
         alert('O valor pago é menor que o total da venda.');
         return;
       }
 
-      await updateByPath('sales', sale.id, {
-        customerName: String(values.customerName || '').trim() || 'Não identificado',
-        customerCpf: String(values.customerCpf || '').trim(),
-        paymentMethod: String(values.paymentMethod || 'Dinheiro'),
-        discount,
-        total,
-        amountPaid,
-        change,
-        notes: String(values.notes || '')
-      });
+      const newItems = editingItems.map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        quantity: Number(item.quantity || 0),
+        unitPrice: Number(item.unitPrice || 0),
+        total: Number(item.unitPrice || 0) * Number(item.quantity || 0)
+      }));
 
-      showToast('Venda atualizada com sucesso.', 'success');
-      closeModal();
+      try {
+        await applySaleItemsStockDiff(sale.items || [], newItems);
+
+        await updateByPath('sales', sale.id, {
+          customerName: String(values.customerName || '').trim() || 'Não identificado',
+          customerCpf: String(values.customerCpf || '').trim(),
+          paymentMethod: String(values.paymentMethod || 'Dinheiro'),
+          discount,
+          subtotal,
+          total,
+          amountPaid,
+          change,
+          notes: String(values.notes || ''),
+          items: newItems
+        });
+
+        showToast('Venda atualizada com sucesso.', 'success');
+        closeModal();
+      } catch (error) {
+        alert(error.message || 'Não foi possível atualizar a venda.');
+      }
     });
+
+    recalcAndRender();
   }
 
   async function restoreSaleItemsToStock(sale) {
