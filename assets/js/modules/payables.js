@@ -33,10 +33,12 @@ export function createPayablesModule(ctx) {
       const status = getPayableStatus(item);
       const dueDate = String(item.dueDate || '');
 
-      return (!filters.supplier || supplier.includes(filters.supplier.toLowerCase()))
-        && (!filters.status || status === filters.status)
-        && (!filters.dateFrom || !dueDate || dueDate >= filters.dateFrom)
-        && (!filters.dateTo || !dueDate || dueDate <= filters.dateTo);
+      return (
+        (!filters.supplier || supplier.includes(filters.supplier.toLowerCase())) &&
+        (!filters.status || status === filters.status) &&
+        (!filters.dateFrom || !dueDate || dueDate >= filters.dateFrom) &&
+        (!filters.dateTo || !dueDate || dueDate <= filters.dateTo)
+      );
     });
   }
 
@@ -79,6 +81,14 @@ export function createPayablesModule(ctx) {
     return getRows().find((item) => item.id === state.editingPayableId) || null;
   }
 
+  function getCurrentUserMeta() {
+    return {
+      uid: String(state.currentUser?.uid || ''),
+      name: String(state.currentUser?.fullName || ''),
+      email: String(state.currentUser?.email || '')
+    };
+  }
+
   function fillForm(form, row) {
     if (!form) return;
 
@@ -95,6 +105,15 @@ export function createPayablesModule(ctx) {
     return Math.max(0, Number(totalAmount || 0) - Number(paidAmount || 0));
   }
 
+  function closePayableFormModal() {
+    const modalRoot = document.getElementById('modal-root');
+    if (modalRoot) {
+      modalRoot.innerHTML = '';
+    }
+    state.editingPayableId = null;
+    render();
+  }
+
   async function savePayable() {
     if (isSavingPayable) return;
     isSavingPayable = true;
@@ -104,7 +123,6 @@ export function createPayablesModule(ctx) {
       if (!form) return;
 
       const payload = Object.fromEntries(new FormData(form).entries());
-
       payload.totalAmount = toNumber(payload.totalAmount);
       payload.paidAmount = toNumber(payload.paidAmount);
       payload.openAmount = recalcOpenAmount(payload.totalAmount, payload.paidAmount);
@@ -115,10 +133,24 @@ export function createPayablesModule(ctx) {
         return;
       }
 
+      if (payload.totalAmount < 0 || payload.paidAmount < 0) {
+        alert('Os valores não podem ser negativos.');
+        return;
+      }
+
+      if (payload.paidAmount > payload.totalAmount) {
+        alert('O valor pago não pode ser maior que o total.');
+        return;
+      }
+
       if (state.editingPayableId) {
         const current = getEditingRow();
 
-        await updateByPath('accounts_payable', state.editingPayableId, payload);
+        await updateByPath('accounts_payable', state.editingPayableId, {
+          ...payload,
+          editedAt: new Date().toISOString(),
+          editedBy: getCurrentUserMeta().uid || getCurrentUserMeta().name || ''
+        });
 
         await auditModule.log({
           module: 'payables',
@@ -132,7 +164,10 @@ export function createPayablesModule(ctx) {
         state.editingPayableId = null;
         showToast('Conta a pagar atualizada.', 'success');
       } else {
-        const createdId = await createDoc(refs.accountsPayable, payload);
+        const createdId = await createDoc(refs.accountsPayable, {
+          ...payload,
+          paymentHistory: []
+        });
 
         await auditModule.log({
           module: 'payables',
@@ -147,7 +182,6 @@ export function createPayablesModule(ctx) {
       }
 
       closePayableFormModal();
-      render();
     } finally {
       isSavingPayable = false;
     }
@@ -155,24 +189,26 @@ export function createPayablesModule(ctx) {
 
   function getPayableFormHtml() {
     return `
-      <div class="form-modal-body">
-        <div class="section-header">
-          <h2>${state.editingPayableId ? 'Editar conta a pagar' : 'Nova conta a pagar'}</h2>
-          <span class="muted">Cadastro em modal.</span>
-        </div>
+      <div class="modal-backdrop" id="payable-form-modal-backdrop">
+        <div class="modal-card">
+          <div class="section-header">
+            <h2>${state.editingPayableId ? 'Editar conta a pagar' : 'Nova conta a pagar'}</h2>
+          </div>
 
-        <form id="payable-form" class="form-grid mobile-optimized">
-          <div class="form-section" style="grid-column:1 / -1;">
-            <div class="form-section-title">
+          <p class="auth-hint">Cadastro em modal.</p>
+
+          <form id="payable-form" class="stack-list">
+            <div class="section-header">
               <h3>Identificação</h3>
-              <span>Fornecedor e descrição</span>
             </div>
-            <div class="soft-divider"></div>
 
-            <div class="form-grid">
-              <label>Fornecedor
-                <input name="supplierName" list="payable-suppliers-datalist" required />
-                <datalist id="payable-suppliers-datalist">
+            <p class="auth-hint">Fornecedor e descrição</p>
+
+            <div class="filters-grid">
+              <label>
+                Fornecedor
+                <input name="supplierName" list="payable-suppliers-list" required />
+                <datalist id="payable-suppliers-list">
                   ${(state.suppliers || [])
                     .filter((item) => item.deleted !== true && item.active !== false)
                     .map((item) => `<option value="${escapeHtml(item.name || '')}"></option>`)
@@ -180,59 +216,72 @@ export function createPayablesModule(ctx) {
                 </datalist>
               </label>
 
-              <label>Documento<input name="documentNumber" /></label>
-              <label style="grid-column:1 / -1;">Descrição<input name="description" required /></label>
-            </div>
-          </div>
+              <label>
+                Documento
+                <input name="documentNumber" />
+              </label>
 
-          <div class="form-section" style="grid-column:1 / -1;">
-            <div class="form-section-title">
+              <label>
+                Descrição
+                <input name="description" required />
+              </label>
+            </div>
+
+            <div class="section-header">
               <h3>Valores</h3>
-              <span>Total, pago e vencimento</span>
             </div>
-            <div class="soft-divider"></div>
 
-            <div class="form-grid">
-              <label>Vencimento<input name="dueDate" type="date" required /></label>
-              <label>Total<input name="totalAmount" type="number" step="0.01" min="0" required /></label>
-              <label>Pago<input name="paidAmount" type="number" step="0.01" min="0" value="0" /></label>
-              <label style="grid-column:1 / -1;">Observações<textarea name="notes"></textarea></label>
+            <p class="auth-hint">Total, pago e vencimento</p>
+
+            <div class="filters-grid">
+              <label>
+                Vencimento
+                <input type="date" name="dueDate" />
+              </label>
+
+              <label>
+                Total
+                <input type="number" name="totalAmount" min="0" step="0.01" required />
+              </label>
+
+              <label>
+                Pago
+                <input type="number" name="paidAmount" min="0" step="0.01" value="0" />
+              </label>
             </div>
-          </div>
 
-          <div class="form-actions" style="grid-column:1 / -1;">
-            <button class="btn btn-primary" type="submit">${state.editingPayableId ? 'Salvar conta' : 'Cadastrar conta'}</button>
-            <button class="btn btn-secondary" type="button" id="payable-form-cancel-btn">Cancelar</button>
-          </div>
-        </form>
+            <label>
+              Observações
+              <textarea name="notes" rows="3"></textarea>
+            </label>
+
+            <div class="form-actions">
+              <button class="btn btn-primary" type="submit">
+                ${state.editingPayableId ? 'Salvar conta' : 'Cadastrar conta'}
+              </button>
+              <button class="btn btn-secondary" type="button" id="payable-form-cancel-btn">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     `;
   }
 
   function openPayableFormModal(payableId = null) {
     state.editingPayableId = payableId;
+
     const modalRoot = document.getElementById('modal-root');
     if (!modalRoot) return;
 
-    modalRoot.innerHTML = `
-      <div class="modal-backdrop" id="payable-form-modal-backdrop">
-        <div class="modal-card form-modal-card">
-          ${getPayableFormHtml()}
-        </div>
-      </div>
-    `;
-
-    const closeModal = () => {
-      modalRoot.innerHTML = '';
-      state.editingPayableId = null;
-      render();
-    };
+    modalRoot.innerHTML = getPayableFormHtml();
 
     modalRoot.querySelector('#payable-form-modal-backdrop')?.addEventListener('click', (event) => {
-      if (event.target.id === 'payable-form-modal-backdrop') closeModal();
+      if (event.target.id === 'payable-form-modal-backdrop') closePayableFormModal();
     });
 
-    modalRoot.querySelector('#payable-form-cancel-btn')?.addEventListener('click', closeModal);
+    modalRoot.querySelector('#payable-form-cancel-btn')?.addEventListener('click', closePayableFormModal);
 
     const form = modalRoot.querySelector('#payable-form');
     fillForm(form, getEditingRow());
@@ -254,22 +303,24 @@ export function createPayablesModule(ctx) {
             <button class="btn btn-secondary" type="button" id="payable-payment-modal-close">Fechar</button>
           </div>
 
-          <div class="sale-details-grid" style="margin-bottom:14px;">
-            <div class="sale-details-box"><span>Fornecedor</span><strong>${escapeHtml(row.supplierName || '-')}</strong></div>
-            <div class="sale-details-box"><span>Total</span><strong>${currency(row.totalAmount || 0)}</strong></div>
-            <div class="sale-details-box"><span>Em aberto</span><strong>${currency(row.openAmount || 0)}</strong></div>
+          <div class="filters-grid">
+            <div><strong>Fornecedor</strong><br>${escapeHtml(row.supplierName || '-')}</div>
+            <div><strong>Total</strong><br>${currency(row.totalAmount || 0)}</div>
+            <div><strong>Em aberto</strong><br>${currency(row.openAmount || 0)}</div>
           </div>
 
-          <form id="payable-payment-form" class="form-grid">
-            <label>Valor do pagamento
-              <input name="paymentAmount" type="number" step="0.01" min="0.01" max="${Number(row.openAmount || 0)}" required />
+          <form id="payable-payment-form" class="stack-list" style="margin-top:16px;">
+            <label>
+              Valor do pagamento
+              <input type="number" name="paymentAmount" min="0" step="0.01" required />
             </label>
 
-            <label>Observação
-              <input name="paymentNote" placeholder="Opcional" />
+            <label>
+              Observação
+              <textarea name="paymentNote" rows="3"></textarea>
             </label>
 
-            <div class="form-actions" style="grid-column:1 / -1;">
+            <div class="form-actions">
               <button class="btn btn-primary" type="submit">Registrar pagamento</button>
               <button class="btn btn-secondary" type="button" id="payable-payment-full-btn">Quitar tudo</button>
             </div>
@@ -278,7 +329,9 @@ export function createPayablesModule(ctx) {
       </div>
     `;
 
-    const closeModal = () => { modalRoot.innerHTML = ''; };
+    const closeModal = () => {
+      modalRoot.innerHTML = '';
+    };
 
     modalRoot.querySelector('#payable-payment-modal-close')?.addEventListener('click', closeModal);
     modalRoot.querySelector('#payable-payment-modal-backdrop')?.addEventListener('click', (event) => {
@@ -289,45 +342,63 @@ export function createPayablesModule(ctx) {
       modalRoot.querySelector('input[name="paymentAmount"]').value = Number(row.openAmount || 0);
     });
 
-    bindSubmitGuard(modalRoot.querySelector('#payable-payment-form'), async () => {
-      const form = modalRoot.querySelector('#payable-payment-form');
-      const values = Object.fromEntries(new FormData(form).entries());
-      const paymentAmount = toNumber(values.paymentAmount);
+    bindSubmitGuard(
+      modalRoot.querySelector('#payable-payment-form'),
+      async () => {
+        const form = modalRoot.querySelector('#payable-payment-form');
+        const values = Object.fromEntries(new FormData(form).entries());
+        const paymentAmount = toNumber(values.paymentAmount);
+        const paymentNote = String(values.paymentNote || '').trim();
 
-      if (paymentAmount <= 0) {
-        alert('Informe um valor válido.');
-        return;
-      }
+        if (paymentAmount <= 0) {
+          alert('Informe um valor válido.');
+          return;
+        }
 
-      if (paymentAmount > Number(row.openAmount || 0)) {
-        alert('O pagamento não pode ser maior que o valor em aberto.');
-        return;
-      }
+        if (paymentAmount > Number(row.openAmount || 0)) {
+          alert('O pagamento não pode ser maior que o valor em aberto.');
+          return;
+        }
 
-      const newPaidAmount = Number(row.paidAmount || 0) + paymentAmount;
-      const newOpenAmount = Math.max(0, Number(row.totalAmount || 0) - newPaidAmount);
+        const actor = getCurrentUserMeta();
+        const paymentHistory = Array.isArray(row.paymentHistory) ? [...row.paymentHistory] : [];
 
-      await updateByPath('accounts_payable', row.id, {
-        paidAmount: newPaidAmount,
-        openAmount: newOpenAmount,
-        lastPaymentAt: new Date().toISOString(),
-        lastPaymentNote: String(values.paymentNote || '')
-      });
+        paymentHistory.push({
+          amount: paymentAmount,
+          note: paymentNote,
+          createdAt: new Date().toISOString(),
+          createdBy: actor.uid || actor.name || '',
+          createdByName: actor.name || '',
+          createdByEmail: actor.email || ''
+        });
 
-      await auditModule.log({
-        module: 'payables',
-        action: 'payment',
-        entityType: 'account_payable',
-        entityId: row.id,
-        entityLabel: row.description || '',
-        description: 'Pagamento registrado em conta a pagar.',
-        metadata: { paymentAmount }
-      });
+        const newPaidAmount = Number(row.paidAmount || 0) + paymentAmount;
+        const newOpenAmount = Math.max(0, Number(row.totalAmount || 0) - newPaidAmount);
 
-      showToast('Pagamento registrado.', 'success');
-      closeModal();
-      render();
-    }, { busyLabel: 'Registrando...' });
+        await updateByPath('accounts_payable', row.id, {
+          paidAmount: newPaidAmount,
+          openAmount: newOpenAmount,
+          lastPaymentAt: new Date().toISOString(),
+          lastPaymentNote: paymentNote,
+          paymentHistory
+        });
+
+        await auditModule.log({
+          module: 'payables',
+          action: 'payment',
+          entityType: 'account_payable',
+          entityId: row.id,
+          entityLabel: row.description || '',
+          description: 'Pagamento registrado em conta a pagar.',
+          metadata: { paymentAmount, paymentNote }
+        });
+
+        showToast('Pagamento registrado.', 'success');
+        closeModal();
+        render();
+      },
+      { busyLabel: 'Registrando...' }
+    );
   }
 
   function openDetailsModal(payableId) {
@@ -338,61 +409,172 @@ export function createPayablesModule(ctx) {
     if (!modalRoot) return;
 
     const status = getPayableStatus(row);
+    const history = Array.isArray(row.paymentHistory) ? [...row.paymentHistory].reverse() : [];
 
     modalRoot.innerHTML = `
       <div class="modal-backdrop" id="payable-details-modal-backdrop">
-        <div class="modal-card sale-details-modal-card">
+        <div class="modal-card" style="max-width:960px;">
           <div class="section-header">
             <h2>Detalhes da conta a pagar</h2>
             <button class="btn btn-secondary" type="button" id="payable-details-modal-close">Fechar</button>
           </div>
 
-          <div class="sale-details-grid">
-            <div class="sale-details-box"><span>Fornecedor</span><strong>${escapeHtml(row.supplierName || '-')}</strong></div>
-            <div class="sale-details-box"><span>Status</span><strong>${getStatusLabel(status)}</strong></div>
-            <div class="sale-details-box"><span>Vencimento</span><strong>${escapeHtml(row.dueDate || '-')}</strong></div>
-            <div class="sale-details-box"><span>Total</span><strong>${currency(row.totalAmount || 0)}</strong></div>
-            <div class="sale-details-box"><span>Pago</span><strong>${currency(row.paidAmount || 0)}</strong></div>
-            <div class="sale-details-box"><span>Em aberto</span><strong>${currency(row.openAmount || 0)}</strong></div>
-            <div class="sale-details-box"><span>Documento</span><strong>${escapeHtml(row.documentNumber || '-')}</strong></div>
-            <div class="sale-details-box"><span>Último pagamento</span><strong>${row.lastPaymentAt ? formatDateTime(row.lastPaymentAt) : '-'}</strong></div>
-            <div class="sale-details-box"><span>Observação do pagamento</span><strong>${escapeHtml(row.lastPaymentNote || '-')}</strong></div>
+          <div class="filters-grid">
+            <div><strong>Fornecedor</strong><br>${escapeHtml(row.supplierName || '-')}</div>
+            <div><strong>Status</strong><br>${getStatusLabel(status)}</div>
+            <div><strong>Vencimento</strong><br>${escapeHtml(row.dueDate || '-')}</div>
+            <div><strong>Total</strong><br>${currency(row.totalAmount || 0)}</div>
+            <div><strong>Pago</strong><br>${currency(row.paidAmount || 0)}</div>
+            <div><strong>Em aberto</strong><br>${currency(row.openAmount || 0)}</div>
+            <div><strong>Documento</strong><br>${escapeHtml(row.documentNumber || '-')}</div>
+            <div><strong>Último pagamento</strong><br>${row.lastPaymentAt ? formatDateTime(row.lastPaymentAt) : '-'}</div>
+            <div><strong>Observação do pagamento</strong><br>${escapeHtml(row.lastPaymentNote || '-')}</div>
+          </div>
+
+          <div style="margin-top:16px;">
+            <strong>Observações</strong>
+            <div class="empty-state" style="text-align:left; margin-top:8px;">
+              <span>${escapeHtml(row.notes || 'Sem observações.')}</span>
+            </div>
+          </div>
+
+          <div style="margin-top:16px;">
+            <strong>Histórico de pagamentos</strong>
+            <div class="table-wrap scroll-dual" style="margin-top:8px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Valor</th>
+                    <th>Observação</th>
+                    <th>Usuário</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${
+                    history.map((item) => `
+                      <tr>
+                        <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
+                        <td>${currency(item.amount || 0)}</td>
+                        <td>${escapeHtml(item.note || '-')}</td>
+                        <td>${escapeHtml(item.createdByName || '-')}</td>
+                      </tr>
+                    `).join('') || `
+                      <tr>
+                        <td colspan="4">Nenhum pagamento registrado.</td>
+                      </tr>
+                    `
+                  }
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     `;
 
-    const closeModal = () => { modalRoot.innerHTML = ''; };
+    const closeModal = () => {
+      modalRoot.innerHTML = '';
+    };
+
     modalRoot.querySelector('#payable-details-modal-close')?.addEventListener('click', closeModal);
     modalRoot.querySelector('#payable-details-modal-backdrop')?.addEventListener('click', (event) => {
       if (event.target.id === 'payable-details-modal-backdrop') closeModal();
     });
   }
 
-  function openPayableActions(payableId) {
-    window.openActionsSheet?.('Ações da conta', [
-      {
-        label: 'Editar',
-        className: 'btn btn-secondary',
-        onClick: async () => openPayableFormModal(payableId)
-      }
-    ]);
+  function openDeletePayableModal(payableId) {
+    const row = getRows().find((item) => item.id === payableId);
+    if (!row) return;
+
+    const modalRoot = document.getElementById('modal-root');
+    if (!modalRoot) return;
+
+    modalRoot.innerHTML = `
+      <div class="modal-backdrop" id="delete-payable-modal-backdrop">
+        <div class="modal-card">
+          <div class="section-header">
+            <h2>Excluir conta a pagar</h2>
+            <button class="btn btn-secondary" type="button" id="delete-payable-close-btn">Fechar</button>
+          </div>
+
+          <div class="empty-state" style="text-align:left;">
+            <strong>${escapeHtml(row.description || 'Conta a pagar')}</strong>
+            <span>Fornecedor: ${escapeHtml(row.supplierName || '-')}</span>
+            <span>Esta exclusão é lógica e manterá compatibilidade com os dados existentes.</span>
+          </div>
+
+          <form id="delete-payable-form" class="form-grid" style="margin-top:16px;">
+            <label style="grid-column:1 / -1;">
+              Motivo da exclusão
+              <textarea name="deleteReason" rows="4" required></textarea>
+            </label>
+
+            <div class="form-actions" style="grid-column:1 / -1;">
+              <button class="btn btn-danger" type="submit">Excluir conta</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    const closeModal = () => {
+      modalRoot.innerHTML = '';
+    };
+
+    modalRoot.querySelector('#delete-payable-close-btn')?.addEventListener('click', closeModal);
+    modalRoot.querySelector('#delete-payable-modal-backdrop')?.addEventListener('click', (event) => {
+      if (event.target.id === 'delete-payable-modal-backdrop') closeModal();
+    });
+
+    modalRoot.querySelector('#delete-payable-form')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+      const actor = getCurrentUserMeta();
+
+      await updateByPath('accounts_payable', row.id, {
+        deleted: true,
+        deletedAt: new Date().toISOString(),
+        deletedBy: actor.uid || actor.name || '',
+        deleteReason: String(values.deleteReason || '').trim()
+      });
+
+      await auditModule.log({
+        module: 'payables',
+        action: 'delete',
+        entityType: 'account_payable',
+        entityId: row.id,
+        entityLabel: row.description || '',
+        description: 'Conta a pagar excluída logicamente.',
+        metadata: {
+          deleteReason: String(values.deleteReason || '').trim()
+        }
+      });
+
+      showToast('Conta excluída com sucesso.', 'success');
+      closeModal();
+      render();
+    });
   }
 
   function renderPayableActions(row) {
     return `
-      <div class="actions-inline-compact">
-        <button class="icon-action-btn success" type="button" data-payable-pay="${row.id}" title="Pagar" aria-label="Pagar">💰</button>
-        <button class="icon-action-btn info" type="button" data-payable-view="${row.id}" title="Detalhes" aria-label="Detalhes">👁️</button>
-        <button class="icon-action-btn" type="button" data-payable-more="${row.id}" title="Mais ações" aria-label="Mais ações">⋯</button>
-      </div>
+      <button class="btn btn-secondary" type="button" data-payable-view="${row.id}">Ver</button>
+      <button class="btn btn-secondary" type="button" data-payable-pay="${row.id}">Pagar</button>
+      <button class="btn btn-secondary" type="button" data-payable-edit="${row.id}">Editar</button>
+      <button class="btn btn-secondary" type="button" data-payable-delete="${row.id}">Excluir</button>
     `;
   }
 
   function bindEvents() {
-    bindAsyncButton(tabEls.payables.querySelector('#open-payable-form-btn'), async () => {
-      openPayableFormModal(null);
-    }, { busyLabel: 'Abrindo...' });
+    bindAsyncButton(
+      tabEls.payables.querySelector('#open-payable-form-btn'),
+      async () => {
+        openPayableFormModal(null);
+      },
+      { busyLabel: 'Abrindo...' }
+    );
 
     tabEls.payables.querySelector('#payable-filter-apply')?.addEventListener('click', () => {
       filters.supplier = tabEls.payables.querySelector('#payable-filter-supplier')?.value || '';
@@ -402,10 +584,14 @@ export function createPayablesModule(ctx) {
       render();
     });
 
-    bindAsyncButton(tabEls.payables.querySelector('#payable-filter-clear'), async () => {
-      filters = { supplier: '', status: '', dateFrom: '', dateTo: '' };
-      render();
-    }, { busyLabel: 'Limpando...' });
+    bindAsyncButton(
+      tabEls.payables.querySelector('#payable-filter-clear'),
+      async () => {
+        filters = { supplier: '', status: '', dateFrom: '', dateTo: '' };
+        render();
+      },
+      { busyLabel: 'Limpando...' }
+    );
 
     tabEls.payables.querySelectorAll('[data-payable-pay]').forEach((btn) => {
       bindAsyncButton(btn, async () => openPaymentModal(btn.dataset.payablePay), { busyLabel: '...' });
@@ -415,8 +601,12 @@ export function createPayablesModule(ctx) {
       btn.addEventListener('click', () => openDetailsModal(btn.dataset.payableView));
     });
 
-    tabEls.payables.querySelectorAll('[data-payable-more]').forEach((btn) => {
-      btn.addEventListener('click', () => openPayableActions(btn.dataset.payableMore));
+    tabEls.payables.querySelectorAll('[data-payable-edit]').forEach((btn) => {
+      btn.addEventListener('click', () => openPayableFormModal(btn.dataset.payableEdit));
+    });
+
+    tabEls.payables.querySelectorAll('[data-payable-delete]').forEach((btn) => {
+      btn.addEventListener('click', () => openDeletePayableModal(btn.dataset.payableDelete));
     });
   }
 
@@ -430,76 +620,78 @@ export function createPayablesModule(ctx) {
     const summary = getSummary();
 
     tabEls.payables.innerHTML = `
-      <div class="section-stack">
-        <div class="cards-grid">
-          <div class="metric-card"><span>Total em aberto</span><strong>${currency(summary.totalOpen)}</strong></div>
-          <div class="metric-card"><span>Total pago</span><strong>${currency(summary.totalPaid)}</strong></div>
-          <div class="metric-card"><span>Vencidas</span><strong>${summary.overdueCount}</strong></div>
-          <div class="metric-card"><span>Filtradas</span><strong>${summary.filtered}</strong></div>
-        </div>
+      <div class="filters-grid">
+        <div><strong>Total em aberto</strong><br>${currency(summary.totalOpen)}</div>
+        <div><strong>Total pago</strong><br>${currency(summary.totalPaid)}</div>
+        <div><strong>Vencidas</strong><br>${summary.overdueCount}</div>
+        <div><strong>Filtradas</strong><br>${summary.filtered}</div>
+      </div>
 
-        <div class="entity-toolbar panel">
-          <div>
-            <h2 style="margin:0 0 6px;">Contas a pagar</h2>
-            <p class="muted">Cadastro em modal e lista com rolagem interna.</p>
-          </div>
-          <div class="entity-toolbar-actions">
-            <button class="btn btn-primary" type="button" id="open-payable-form-btn">Nova conta</button>
-          </div>
-        </div>
+      <div class="section-header" style="margin-top:16px;">
+        <h2>Contas a pagar</h2>
+      </div>
 
-        <div class="table-card">
-          <div class="section-header">
-            <h2>Lista de contas a pagar</h2>
-            <span class="muted">${rows.length} resultado(s)</span>
-          </div>
+      <p class="auth-hint">Cadastro em modal e lista com rolagem interna.</p>
 
-          <div class="search-row" style="margin-bottom:14px;">
-            <input id="payable-filter-supplier" placeholder="Fornecedor" value="${escapeHtml(filters.supplier)}" />
-            <select id="payable-filter-status">
-              <option value="">Todos os status</option>
-              <option value="em_aberto" ${filters.status === 'em_aberto' ? 'selected' : ''}>Em aberto</option>
-              <option value="vencido" ${filters.status === 'vencido' ? 'selected' : ''}>Vencido</option>
-              <option value="quitado" ${filters.status === 'quitado' ? 'selected' : ''}>Quitado</option>
-            </select>
-            <input id="payable-filter-date-from" type="date" value="${filters.dateFrom}" />
-            <input id="payable-filter-date-to" type="date" value="${filters.dateTo}" />
-            <button class="btn btn-secondary" type="button" id="payable-filter-apply">Filtrar</button>
-            <button class="btn btn-secondary" type="button" id="payable-filter-clear">Limpar</button>
-          </div>
+      <div class="form-actions" style="margin-bottom:16px;">
+        <button class="btn btn-primary" type="button" id="open-payable-form-btn">Nova conta</button>
+      </div>
 
-          <div class="table-wrap scroll-dual">
-            <table>
-              <thead>
+      <div class="section-header">
+        <h2>Lista de contas a pagar</h2>
+        <span>${rows.length} resultado(s)</span>
+      </div>
+
+      <div class="filters-grid">
+        <input id="payable-filter-supplier" placeholder="Fornecedor" value="${escapeHtml(filters.supplier)}" />
+        <select id="payable-filter-status">
+          <option value="">Todos os status</option>
+          <option value="em_aberto" ${filters.status === 'em_aberto' ? 'selected' : ''}>Em aberto</option>
+          <option value="vencido" ${filters.status === 'vencido' ? 'selected' : ''}>Vencido</option>
+          <option value="quitado" ${filters.status === 'quitado' ? 'selected' : ''}>Quitado</option>
+        </select>
+        <input id="payable-filter-date-from" type="date" value="${escapeHtml(filters.dateFrom)}" />
+        <input id="payable-filter-date-to" type="date" value="${escapeHtml(filters.dateTo)}" />
+        <button class="btn btn-secondary" type="button" id="payable-filter-apply">Filtrar</button>
+        <button class="btn btn-secondary" type="button" id="payable-filter-clear">Limpar</button>
+      </div>
+
+      <div class="table-wrap" style="margin-top:16px;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Fornecedor</th>
+              <th>Descrição</th>
+              <th>Vencimento</th>
+              <th>Total</th>
+              <th>Em aberto</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              rows.map((row) => {
+                const status = getPayableStatus(row);
+                return `
+                  <tr>
+                    <td>${escapeHtml(row.supplierName || '-')}</td>
+                    <td>${escapeHtml(row.description || '-')}</td>
+                    <td>${escapeHtml(row.dueDate || '-')}</td>
+                    <td>${currency(row.totalAmount || 0)}</td>
+                    <td>${currency(row.openAmount || 0)}</td>
+                    <td><span class="badge badge-${getStatusTagClass(status)}">${getStatusLabel(status)}</span></td>
+                    <td>${renderPayableActions(row)}</td>
+                  </tr>
+                `;
+              }).join('') || `
                 <tr>
-                  <th>Fornecedor</th>
-                  <th>Descrição</th>
-                  <th>Vencimento</th>
-                  <th>Total</th>
-                  <th>Em aberto</th>
-                  <th>Status</th>
-                  <th>Ações</th>
+                  <td colspan="7">Nenhuma conta encontrada.</td>
                 </tr>
-              </thead>
-              <tbody>
-                ${rows.map((row) => {
-                  const status = getPayableStatus(row);
-                  return `
-                    <tr>
-                      <td>${escapeHtml(row.supplierName || '-')}</td>
-                      <td>${escapeHtml(row.description || '-')}</td>
-                      <td>${escapeHtml(row.dueDate || '-')}</td>
-                      <td>${currency(row.totalAmount || 0)}</td>
-                      <td>${currency(row.openAmount || 0)}</td>
-                      <td><span class="tag ${getStatusTagClass(status)}">${getStatusLabel(status)}</span></td>
-                      <td>${renderPayableActions(row)}</td>
-                    </tr>
-                  `;
-                }).join('') || '<tr><td colspan="7">Nenhuma conta encontrada.</td></tr>'}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              `
+            }
+          </tbody>
+        </table>
       </div>
     `;
 
