@@ -1,12 +1,7 @@
 import { escapeHtml, showToast, bindAsyncButton } from './ui.js';
 
 export function createNotificationsModule(ctx) {
-  const {
-    state,
-    refs,
-    createDoc,
-    updateByPath
-  } = ctx;
+  const { state, refs, createDoc, updateByPath } = ctx;
 
   let filters = {
     category: '',
@@ -20,20 +15,24 @@ export function createNotificationsModule(ctx) {
 
     if (typeof value === 'string') {
       const parsed = new Date(value);
+
       if (!Number.isNaN(parsed.getTime())) {
         return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
       }
+
       return value.slice(0, 10);
     }
 
     if (value?.toDate && typeof value.toDate === 'function') {
       const parsed = value.toDate();
+
       if (!Number.isNaN(parsed.getTime())) {
         return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
       }
     }
 
     const parsed = new Date(value);
+
     if (!Number.isNaN(parsed.getTime())) {
       return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
     }
@@ -48,6 +47,7 @@ export function createNotificationsModule(ctx) {
   function isRead(item) {
     const currentUserId = String(state.currentUser?.uid || '');
     const readBy = Array.isArray(item.readBy) ? item.readBy : [];
+
     return item.status === 'read' || (currentUserId && readBy.includes(currentUserId));
   }
 
@@ -60,10 +60,12 @@ export function createNotificationsModule(ctx) {
       const createdKey = normalizeDateKey(item.createdAt);
       const rowStatus = isRead(item) ? 'read' : 'unread';
 
-      return (!filters.category || String(item.category || '') === filters.category)
-        && (!filters.status || rowStatus === filters.status)
-        && (!filters.dateFrom || !createdKey || createdKey >= filters.dateFrom)
-        && (!filters.dateTo || !createdKey || createdKey <= filters.dateTo);
+      return (
+        (!filters.category || String(item.category || '') === filters.category) &&
+        (!filters.status || rowStatus === filters.status) &&
+        (!filters.dateFrom || !createdKey || createdKey >= filters.dateFrom) &&
+        (!filters.dateTo || !createdKey || createdKey <= filters.dateTo)
+      );
     });
   }
 
@@ -116,16 +118,21 @@ export function createNotificationsModule(ctx) {
 
   async function markAllAsRead() {
     const unread = getUnreadRows();
+
     for (const row of unread) {
       await markAsRead(row.id);
     }
+
     showToast('Notificações marcadas como lidas.', 'success');
   }
 
   function updateBellBadge() {
     const badge = document.getElementById('notifications-badge');
     if (!badge) return;
-    badge.textContent = String(getUnreadRows().length);
+
+    const unreadCount = getUnreadRows().length;
+    badge.textContent = String(unreadCount);
+    badge.classList.toggle('hidden', unreadCount <= 0);
   }
 
   function formatNotificationDate(value) {
@@ -136,6 +143,7 @@ export function createNotificationsModule(ctx) {
     }
 
     const parsed = new Date(value);
+
     if (!Number.isNaN(parsed.getTime())) {
       return parsed.toLocaleString('pt-BR');
     }
@@ -155,19 +163,44 @@ export function createNotificationsModule(ctx) {
 
     return `
       <div class="stack-list">
-        ${rows.map((item) => `
-          <div class="list-item notification-row ${isRead(item) ? 'is-read' : 'is-unread'}">
-            <div class="notification-row-top">
-              <strong>${escapeHtml(item.title || '-')}</strong>
-              <span class="tag ${isRead(item) ? 'info' : 'warning'}">${isRead(item) ? 'Lida' : 'Não lida'}</span>
-            </div>
-            <span>${escapeHtml(item.message || '-')}</span>
-            <span>${escapeHtml(item.category || '-')} · ${escapeHtml(formatNotificationDate(item.createdAt))}</span>
-            <div class="form-actions">
-              ${isRead(item) ? '' : `<button class="btn btn-secondary" type="button" data-notification-read="${item.id}">Marcar como lida</button>`}
-            </div>
-          </div>
-        `).join('')}
+        ${rows
+          .map(
+            (item) => `
+              <article class="list-item">
+                <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+                  <div style="display:grid; gap:6px;">
+                    <strong>${escapeHtml(item.title || '-')}</strong>
+                    <span class="badge ${isRead(item) ? 'badge-neutral' : 'badge-warning'}">
+                      ${isRead(item) ? 'Lida' : 'Não lida'}
+                    </span>
+                  </div>
+                </div>
+
+                <span>${escapeHtml(item.message || '-')}</span>
+
+                <small style="opacity:.78;">
+                  ${escapeHtml(item.category || '-')} · ${escapeHtml(formatNotificationDate(item.createdAt))}
+                </small>
+
+                <div class="form-actions" style="margin-top:12px; justify-content:flex-end;">
+                  ${
+                    isRead(item)
+                      ? ''
+                      : `
+                        <button
+                          class="btn btn-secondary"
+                          type="button"
+                          data-notification-read="${escapeHtml(item.id || '')}"
+                        >
+                          Marcar como lida
+                        </button>
+                      `
+                  }
+                </div>
+              </article>
+            `
+          )
+          .join('')}
       </div>
     `;
   }
@@ -180,39 +213,56 @@ export function createNotificationsModule(ctx) {
 
     modalRoot.innerHTML = `
       <div class="modal-backdrop" id="notifications-modal-backdrop">
-        <div class="modal-card notifications-modal-card">
+        <div class="modal-card" style="max-width:960px;">
           <div class="section-header">
             <h2>Notificações</h2>
             <div class="form-actions">
-              <button class="btn btn-secondary" type="button" id="notifications-mark-all-btn">Marcar todas como lidas</button>
-              <button class="btn btn-secondary" type="button" id="notifications-close-btn">Fechar</button>
+              <button class="btn btn-secondary" type="button" id="notifications-mark-all-btn">
+                Marcar todas como lidas
+              </button>
+              <button class="btn btn-secondary" type="button" id="notifications-close-btn">
+                Fechar
+              </button>
             </div>
           </div>
 
-          <div class="search-row" style="margin-bottom:14px;">
-            <select id="notifications-filter-category">
-              <option value="">Todas as categorias</option>
-              <option value="tele_entrega" ${filters.category === 'tele_entrega' ? 'selected' : ''}>Tele-entrega</option>
-              <option value="estoque" ${filters.category === 'estoque' ? 'selected' : ''}>Estoque</option>
-              <option value="contas" ${filters.category === 'contas' ? 'selected' : ''}>Contas</option>
-            </select>
+          <div class="filters-grid" style="margin-bottom:16px;">
+            <label>
+              Categoria
+              <select id="notifications-filter-category">
+                <option value="">Todas as categorias</option>
+                <option value="tele_entrega" ${filters.category === 'tele_entrega' ? 'selected' : ''}>Tele-entrega</option>
+                <option value="estoque" ${filters.category === 'estoque' ? 'selected' : ''}>Estoque</option>
+                <option value="contas" ${filters.category === 'contas' ? 'selected' : ''}>Contas</option>
+              </select>
+            </label>
 
-            <select id="notifications-filter-status">
-              <option value="">Todos</option>
-              <option value="unread" ${filters.status === 'unread' ? 'selected' : ''}>Não lidas</option>
-              <option value="read" ${filters.status === 'read' ? 'selected' : ''}>Lidas</option>
-            </select>
+            <label>
+              Status
+              <select id="notifications-filter-status">
+                <option value="">Todos</option>
+                <option value="unread" ${filters.status === 'unread' ? 'selected' : ''}>Não lidas</option>
+                <option value="read" ${filters.status === 'read' ? 'selected' : ''}>Lidas</option>
+              </select>
+            </label>
 
-            <input id="notifications-filter-date-from" type="date" value="${filters.dateFrom}" />
-            <input id="notifications-filter-date-to" type="date" value="${filters.dateTo}" />
+            <label>
+              Data inicial
+              <input type="date" id="notifications-filter-date-from" value="${escapeHtml(filters.dateFrom)}" />
+            </label>
 
-            <button class="btn btn-secondary" type="button" id="notifications-filter-apply">Filtrar</button>
+            <label>
+              Data final
+              <input type="date" id="notifications-filter-date-to" value="${escapeHtml(filters.dateTo)}" />
+            </label>
+          </div>
+
+          <div class="form-actions" style="margin-bottom:16px;">
+            <button class="btn btn-primary" type="button" id="notifications-filter-apply">Filtrar</button>
             <button class="btn btn-secondary" type="button" id="notifications-filter-clear">Limpar</button>
           </div>
 
-          <div class="settings-audit-scroll">
-            ${renderList(rows)}
-          </div>
+          ${renderList(rows)}
         </div>
       </div>
     `;
@@ -222,23 +272,29 @@ export function createNotificationsModule(ctx) {
     };
 
     modalRoot.querySelector('#notifications-close-btn')?.addEventListener('click', closeModal);
+
     modalRoot.querySelector('#notifications-modal-backdrop')?.addEventListener('click', (event) => {
       if (event.target.id === 'notifications-modal-backdrop') {
         closeModal();
       }
     });
 
-    bindAsyncButton(modalRoot.querySelector('#notifications-mark-all-btn'), async () => {
-      await markAllAsRead();
-      closeModal();
-      openNotificationsModal();
-    }, { busyLabel: 'Processando...' });
+    bindAsyncButton(
+      modalRoot.querySelector('#notifications-mark-all-btn'),
+      async () => {
+        await markAllAsRead();
+        closeModal();
+        openNotificationsModal();
+      },
+      { busyLabel: 'Processando...' }
+    );
 
     modalRoot.querySelector('#notifications-filter-apply')?.addEventListener('click', () => {
       filters.category = modalRoot.querySelector('#notifications-filter-category')?.value || '';
       filters.status = modalRoot.querySelector('#notifications-filter-status')?.value || '';
       filters.dateFrom = modalRoot.querySelector('#notifications-filter-date-from')?.value || '';
       filters.dateTo = modalRoot.querySelector('#notifications-filter-date-to')?.value || '';
+
       openNotificationsModal();
     });
 
@@ -249,6 +305,7 @@ export function createNotificationsModule(ctx) {
         dateFrom: '',
         dateTo: ''
       };
+
       openNotificationsModal();
     });
 
@@ -279,6 +336,7 @@ export function createNotificationsModule(ctx) {
 
     for (const item of deliveries) {
       if (item.deleted === true) continue;
+
       if (String(item.status || '').toLowerCase().includes('pendente')) {
         await createNotification({
           type: 'delivery_pending',
@@ -295,6 +353,7 @@ export function createNotificationsModule(ctx) {
 
     for (const item of products) {
       if (item.deleted === true) continue;
+
       if (Number(item.quantity || 0) <= lowStockThreshold) {
         await createNotification({
           type: 'low_stock',
