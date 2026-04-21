@@ -2344,3 +2344,119 @@ body.theme-light #tab-sales option {
 .notification-row.is-read {
   opacity: .78;
 }
+
+/* =========================
+   VENDAS - layout estilo Gestao-III
+   ========================= */
+
+#tab-sales {
+  display: block;
+}
+
+#tab-sales .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#tab-sales .auth-hint {
+  margin: 6px 0 14px;
+}
+
+#tab-sales .form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+#tab-sales .filters-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  align-items: end;
+}
+
+#tab-sales label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+#tab-sales #sale-cpf-wrap {
+  max-width: 320px;
+}
+
+#tab-sales #sale-search-results,
+#tab-sales #sale-cart-items {
+  margin-top: 10px;
+}
+
+#tab-sales .empty-state {
+  width: 100%;
+  text-align: center;
+  padding: 18px 16px;
+}
+
+#tab-sales .list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+}
+
+#tab-sales .list-item .form-actions {
+  margin: 0;
+}
+
+#tab-sales #sale-product-search,
+#tab-sales #sale-customer-name,
+#tab-sales #sale-customer-cpf,
+#tab-sales #sale-payment-method,
+#tab-sales input[name="discount"],
+#tab-sales input[name="amountPaid"],
+#tab-sales textarea[name="notes"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#tab-sales textarea[name="notes"] {
+  min-height: 90px;
+  resize: vertical;
+}
+
+#tab-sales .table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+#tab-sales table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#tab-sales thead th,
+#tab-sales tbody td {
+  text-align: left;
+  vertical-align: middle;
+}
+
+#tab-sales #sales-history-table .btn {
+  min-width: 44px;
+}
+
+#tab-sales [id="sale-items-count"] {
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  #tab-sales .filters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #tab-sales .form-actions {
+    justify-content: flex-start;
+  }
+}
