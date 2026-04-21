@@ -1,109 +1,14 @@
-import { formatDateTime } from '../services/utils.js';
+import { escapeHtml } from './ui.js';
 
 export function createAuditModule(ctx) {
-  const {
-    state,
-    refs,
-    createDoc
-  } = ctx;
+  const { state, formatDateTime } = ctx;
 
-  function escapeHtml(value = '') {
-    return String(value).replace(/[&<>'"]/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      "'": '&#39;',
-      '"': '&quot;'
-    }[char]));
-  }
-
-  function resolveActorName() {
-    return String(
-      state.currentUser?.fullName
-      || state.currentUser?.username
-      || state.currentUser?.email
-      || 'Usuário'
-    ).trim();
-  }
-
-  function resolveActorId() {
-    return String(
-      state.currentUser?.uid
-      || state.currentUser?.id
-      || ''
-    ).trim();
-  }
-
-  function getLogUserName(item) {
-    return String(
-      item?.performedByName
-      || item?.userName
-      || item?.metadata?.performedByName
-      || item?.metadata?.userName
-      || item?.performedByEmail
-      || item?.userEmail
-      || item?.performedById
-      || item?.userId
-      || '-'
-    ).trim();
-  }
-
-  function getLogUserId(item) {
-    return String(
-      item?.performedById
-      || item?.userId
-      || item?.metadata?.performedById
-      || item?.metadata?.userId
-      || ''
-    ).trim();
-  }
-
-  async function log({
-    module = '',
-    action = '',
-    entityType = '',
-    entityId = '',
-    entityLabel = '',
-    description = '',
-    metadata = {}
-  } = {}) {
-    try {
-      const actorName = resolveActorName();
-      const actorId = resolveActorId();
-      const actorEmail = String(state.currentUser?.email || '').trim();
-
-      await createDoc(refs.auditLogs, {
-        module: module || '',
-        action: action || '',
-        entityType: entityType || '',
-        entityId: entityId || '',
-        entityLabel,
-        description,
-        metadata,
-        performedById: actorId,
-        performedByName: actorName,
-        performedByEmail: actorEmail,
-        userId: actorId,
-        userName: actorName,
-        userEmail: actorEmail,
-        deleted: false,
-        createdAt: new Date()
-      });
-    } catch (error) {
-      console.error('Erro ao gravar auditoria:', error);
-    }
+  function getRows() {
+    return Array.isArray(state.auditLogs) ? state.auditLogs : [];
   }
 
   function normalizeDateKey(value) {
     if (!value) return '';
-
-    if (typeof value === 'string') {
-      const parsed = new Date(value);
-      if (!Number.isNaN(parsed.getTime())) {
-        return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
-      }
-      return value.slice(0, 10);
-    }
 
     if (value?.toDate && typeof value.toDate === 'function') {
       const parsed = value.toDate();
@@ -120,240 +25,243 @@ export function createAuditModule(ctx) {
     return '';
   }
 
-  function matchFilter(value, filter) {
-    const rawValue = String(value || '').toLowerCase();
-    const rawFilter = String(filter || '').trim().toLowerCase();
+  function getFilteredRows(filters = {}) {
+    return getRows()
+      .filter((item) => {
+        const moduleValue = String(item.module || '').toLowerCase();
+        const actionValue = String(item.action || '').toLowerCase();
+        const entityTypeValue = String(item.entityType || '').toLowerCase();
+        const entityLabelValue = String(item.entityLabel || '').toLowerCase();
+        const userValue = String(
+          item.userName ||
+          item.userEmail ||
+          item.userId ||
+          ''
+        ).toLowerCase();
 
-    if (!rawFilter) return true;
-    return rawValue.includes(rawFilter);
+        const createdKey = normalizeDateKey(item.createdAt);
+
+        return (
+          (!filters.module || moduleValue.includes(String(filters.module).toLowerCase())) &&
+          (!filters.action || actionValue.includes(String(filters.action).toLowerCase())) &&
+          (!filters.entityType || entityTypeValue.includes(String(filters.entityType).toLowerCase())) &&
+          (!filters.entityLabel || entityLabelValue.includes(String(filters.entityLabel).toLowerCase())) &&
+          (!filters.user || userValue.includes(String(filters.user).toLowerCase())) &&
+          (!filters.dateFrom || !createdKey || createdKey >= filters.dateFrom) &&
+          (!filters.dateTo || !createdKey || createdKey <= filters.dateTo)
+        );
+      })
+      .sort((a, b) => {
+        const da = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
+        const db = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
+        return db - da;
+      });
   }
 
-  function getFilteredLogs(filters = {}) {
-    const rows = Array.isArray(state.auditLogs) ? state.auditLogs : [];
+  function stringifyMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'object') {
+      return '-';
+    }
 
-    return rows.filter((item) => {
-      if (item.deleted === true) return false;
+    const entries = Object.entries(metadata);
+    if (!entries.length) {
+      return '-';
+    }
 
-      const createdKey = normalizeDateKey(item.createdAt);
-      const userValue = getLogUserName(item).toLowerCase();
+    return entries
+      .map(([key, value]) => {
+        if (Array.isArray(value)) {
+          return `${key}: ${value.length ? JSON.stringify(value) : '[]'}`;
+        }
 
-      return matchFilter(item.module, filters.module)
-        && matchFilter(item.action, filters.action)
-        && matchFilter(item.entityType, filters.entityType)
-        && matchFilter(item.entityLabel, filters.entityLabel)
-        && (!filters.user || userValue.includes(filters.user.toLowerCase()))
-        && (!filters.dateFrom || !createdKey || createdKey >= filters.dateFrom)
-        && (!filters.dateTo || !createdKey || createdKey <= filters.dateTo);
-    }).sort((a, b) => {
-      const da = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
-      const db = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
-      return db - da;
+        if (value && typeof value === 'object') {
+          return `${key}: ${JSON.stringify(value)}`;
+        }
+
+        return `${key}: ${String(value)}`;
+      })
+      .join(' | ');
+  }
+
+  async function log({
+    module = '',
+    action = '',
+    entityType = '',
+    entityId = '',
+    entityLabel = '',
+    description = '',
+    metadata = {}
+  } = {}) {
+    const ref = ctx.refs?.auditLogs;
+    if (!ref || !ctx.createDoc) return;
+
+    const user = state.currentUser || {};
+
+    await ctx.createDoc(ref, {
+      module: String(module || '').trim(),
+      action: String(action || '').trim(),
+      entityType: String(entityType || '').trim(),
+      entityId: String(entityId || '').trim(),
+      entityLabel: String(entityLabel || '').trim(),
+      description: String(description || '').trim(),
+      metadata: metadata && typeof metadata === 'object' ? metadata : {},
+      userId: String(user.uid || ''),
+      userName: String(user.fullName || ''),
+      userEmail: String(user.email || ''),
+      createdAt: new Date()
     });
   }
 
-  function renderActionTag(action) {
-    const value = String(action || '').toLowerCase();
-    let className = 'tag info';
-
-    if (['create', 'reactivate', 'receive', 'payment'].includes(value)) {
-      className = 'tag success';
-    } else if (['delete'].includes(value)) {
-      className = 'tag danger';
-    } else if (['update', 'inactivate', 'password_change'].includes(value)) {
-      className = 'tag warning';
-    }
-
-    return `<span class="${className}">${escapeHtml(action || '-')}</span>`;
-  }
-
-  function renderMetadataChanges(item) {
-    const changes = Array.isArray(item?.metadata?.changes) ? item.metadata.changes : [];
-
-    if (!changes.length) {
-      return escapeHtml(item.description || '-');
-    }
-
-    return `
-      <div class="audit-changes-list">
-        ${changes.map((change) => `
-          <div class="audit-change-row">
-            <strong>${escapeHtml(change.label || change.field || 'Campo')}</strong>:
-            <span>${escapeHtml(formatChangeValue(change.from))}</span>
-            <span class="audit-change-arrow">→</span>
-            <span>${escapeHtml(formatChangeValue(change.to))}</span>
-          </div>
-        `).join('')}
-      </div>
-    `;
-  }
-
-  function formatChangeValue(value) {
-    if (value === undefined || value === null || value === '') return '(vazio)';
-    if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
-    if (typeof value === 'object') {
-      try {
-        return JSON.stringify(value);
-      } catch {
-        return String(value);
-      }
-    }
-    return String(value);
-  }
-
-  function renderAuditTable(filters = {}, shouldShow = false, limit = 40) {
+  function renderAuditTable(filters = {}, shouldShow = false, limit = 50) {
     if (!shouldShow) {
       return `
         <div class="empty-state">
           <strong>Auditoria oculta</strong>
-          <span>Aplique os filtros para exibir os logs.</span>
+          <span>Use os filtros e clique em “Filtrar” para carregar os registros.</span>
         </div>
       `;
     }
 
-    const rows = getFilteredLogs(filters).slice(0, Number(limit || 40));
+    const rows = getFilteredRows(filters).slice(0, Math.max(1, Number(limit || 50)));
 
     if (!rows.length) {
       return `
         <div class="empty-state">
-          <strong>Nenhum log encontrado</strong>
-          <span>Não há registros para os filtros aplicados.</span>
+          <strong>Sem registros</strong>
+          <span>Nenhum log encontrado para os filtros informados.</span>
         </div>
       `;
     }
 
     return `
-      <table class="audit-table">
-        <thead>
-          <tr>
-            <th>Data/Hora</th>
-            <th>Usuário</th>
-            <th>Módulo</th>
-            <th>Ação</th>
-            <th>Tipo</th>
-            <th>Registro</th>
-            <th>O que mudou</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map((item) => `
+      <div class="table-wrap scroll-dual">
+        <table>
+          <thead>
             <tr>
-              <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
-              <td title="${escapeHtml(getLogUserId(item))}">${escapeHtml(getLogUserName(item))}</td>
-              <td>${escapeHtml(item.module || '-')}</td>
-              <td>${renderActionTag(item.action || '-')}</td>
-              <td>${escapeHtml(item.entityType || '-')}</td>
-              <td>${escapeHtml(item.entityLabel || item.entityId || '-')}</td>
-              <td>${renderMetadataChanges(item)}</td>
+              <th>Data</th>
+              <th>Módulo</th>
+              <th>Ação</th>
+              <th>Tipo</th>
+              <th>Entidade</th>
+              <th>Descrição</th>
+              <th>Usuário</th>
+              <th>Metadados</th>
             </tr>
-          `).join('')}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            ${rows.map((item) => `
+              <tr>
+                <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
+                <td>${escapeHtml(item.module || '-')}</td>
+                <td>${escapeHtml(item.action || '-')}</td>
+                <td>${escapeHtml(item.entityType || '-')}</td>
+                <td>${escapeHtml(item.entityLabel || item.entityId || '-')}</td>
+                <td>${escapeHtml(item.description || '-')}</td>
+                <td>${escapeHtml(item.userName || item.userEmail || item.userId || '-')}</td>
+                <td>${escapeHtml(stringifyMetadata(item.metadata))}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
     `;
   }
 
   function printFilteredLogs(filters = {}, shouldShow = false) {
     if (!shouldShow) {
-      alert('Aplique os filtros antes de imprimir.');
+      window.print();
       return;
     }
 
-    const rows = getFilteredLogs(filters);
+    const rows = getFilteredRows(filters);
 
-    if (!rows.length) {
-      alert('Não há logs para imprimir com os filtros atuais.');
-      return;
-    }
+    const printWindow = window.open('', '_blank', 'width=1200,height=800');
+    if (!printWindow) return;
 
-    const html = `
-      <!doctype html>
-      <html lang="pt-BR">
+    printWindow.document.write(`
+      <html>
         <head>
-          <meta charset="utf-8" />
-          <title>Auditoria filtrada</title>
+          <title>Auditoria</title>
           <style>
-            body { font-family: Arial, Helvetica, sans-serif; margin: 20px; color: #111; }
-            h1 { margin: 0 0 8px; font-size: 20px; }
-            .subtitle { margin-bottom: 16px; color: #555; }
-            table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
-            th, td { border: 1px solid #999; padding: 6px; text-align: left; vertical-align: top; word-break: break-word; }
-            th { background: #f0f0f0; }
-            .audit-change-row { margin-bottom: 4px; }
-            .audit-change-arrow { margin: 0 4px; font-weight: 700; }
-            @media print { body { margin: 10px; } }
+            body {
+              font-family: Arial, sans-serif;
+              padding: 24px;
+              color: #111;
+            }
+            h1 {
+              margin-bottom: 8px;
+            }
+            p {
+              margin-top: 0;
+              margin-bottom: 16px;
+              color: #444;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 12px;
+            }
+            th, td {
+              border: 1px solid #ccc;
+              padding: 8px;
+              text-align: left;
+              vertical-align: top;
+            }
+            th {
+              background: #f3f3f3;
+            }
           </style>
         </head>
         <body>
-          <h1>Auditoria filtrada</h1>
-          <div class="subtitle">Total de registros: ${rows.length}</div>
+          <h1>Relatório de Auditoria</h1>
+          <p>Gerado em ${new Date().toLocaleString('pt-BR')}</p>
           <table>
             <thead>
               <tr>
-                <th>Data/Hora</th>
-                <th>Usuário</th>
+                <th>Data</th>
                 <th>Módulo</th>
                 <th>Ação</th>
                 <th>Tipo</th>
-                <th>Registro</th>
-                <th>O que mudou</th>
+                <th>Entidade</th>
+                <th>Descrição</th>
+                <th>Usuário</th>
+                <th>Metadados</th>
               </tr>
             </thead>
             <tbody>
-              ${rows.map((item) => `
-                <tr>
-                  <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
-                  <td>${escapeHtml(getLogUserName(item))}</td>
-                  <td>${escapeHtml(item.module || '-')}</td>
-                  <td>${escapeHtml(item.action || '-')}</td>
-                  <td>${escapeHtml(item.entityType || '-')}</td>
-                  <td>${escapeHtml(item.entityLabel || item.entityId || '-')}</td>
-                  <td>${renderPrintChanges(item)}</td>
-                </tr>
-              `).join('')}
+              ${
+                rows.map((item) => `
+                  <tr>
+                    <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
+                    <td>${escapeHtml(item.module || '-')}</td>
+                    <td>${escapeHtml(item.action || '-')}</td>
+                    <td>${escapeHtml(item.entityType || '-')}</td>
+                    <td>${escapeHtml(item.entityLabel || item.entityId || '-')}</td>
+                    <td>${escapeHtml(item.description || '-')}</td>
+                    <td>${escapeHtml(item.userName || item.userEmail || item.userId || '-')}</td>
+                    <td>${escapeHtml(stringifyMetadata(item.metadata))}</td>
+                  </tr>
+                `).join('') || `
+                  <tr>
+                    <td colspan="8">Nenhum registro encontrado.</td>
+                  </tr>
+                `
+              }
             </tbody>
           </table>
         </body>
       </html>
-    `;
+    `);
 
-    const win = window.open('', '_blank', 'width=1200,height=900');
-    if (!win) {
-      alert('Não foi possível abrir a janela de impressão.');
-      return;
-    }
-
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => {
-      try {
-        win.print();
-      } catch (error) {
-        console.error(error);
-      }
-    }, 250);
-  }
-
-  function renderPrintChanges(item) {
-    const changes = Array.isArray(item?.metadata?.changes) ? item.metadata.changes : [];
-
-    if (!changes.length) {
-      return escapeHtml(item.description || '-');
-    }
-
-    return changes.map((change) => `
-      <div class="audit-change-row">
-        <strong>${escapeHtml(change.label || change.field || 'Campo')}</strong>:
-        ${escapeHtml(formatChangeValue(change.from))}
-        <span class="audit-change-arrow">→</span>
-        ${escapeHtml(formatChangeValue(change.to))}
-      </div>
-    `).join('');
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   }
 
   return {
     log,
+    getFilteredRows,
     renderAuditTable,
-    getFilteredLogs,
     printFilteredLogs
   };
 }
