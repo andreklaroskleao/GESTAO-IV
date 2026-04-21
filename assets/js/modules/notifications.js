@@ -6,35 +6,36 @@ export function createNotificationsModule(ctx) {
   let filters = {
     category: '',
     status: '',
+    archived: '',
     dateFrom: '',
     dateTo: ''
   };
 
   let isSyncingNotifications = false;
 
+  function getCurrentUserId() {
+    return String(state.currentUser?.uid || '');
+  }
+
   function normalizeDateKey(value) {
     if (!value) return '';
 
     if (typeof value === 'string') {
       const parsed = new Date(value);
-
       if (!Number.isNaN(parsed.getTime())) {
         return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
       }
-
       return value.slice(0, 10);
     }
 
     if (value?.toDate && typeof value.toDate === 'function') {
       const parsed = value.toDate();
-
       if (!Number.isNaN(parsed.getTime())) {
         return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
       }
     }
 
     const parsed = new Date(value);
-
     if (!Number.isNaN(parsed.getTime())) {
       return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
     }
@@ -42,30 +43,55 @@ export function createNotificationsModule(ctx) {
     return '';
   }
 
+  function formatNotificationDate(value) {
+    if (!value) return '-';
+
+    if (value?.toDate && typeof value.toDate === 'function') {
+      return value.toDate().toLocaleString('pt-BR');
+    }
+
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toLocaleString('pt-BR');
+    }
+
+    return String(value);
+  }
+
   function getRows() {
     return Array.isArray(state.notifications) ? state.notifications : [];
   }
 
   function isRead(item) {
-    const currentUserId = String(state.currentUser?.uid || '');
+    const currentUserId = getCurrentUserId();
     const readBy = Array.isArray(item.readBy) ? item.readBy : [];
-
     return item.status === 'read' || (currentUserId && readBy.includes(currentUserId));
   }
 
+  function isArchived(item) {
+    return item.archived === true;
+  }
+
+  function isResolved(item) {
+    return item.resolved === true;
+  }
+
   function getUnreadRows() {
-    return getRows().filter((item) => !isRead(item));
+    return getRows().filter((item) => item.deleted !== true && !isArchived(item) && !isRead(item));
   }
 
   function getFilteredRows() {
     return getRows().filter((item) => {
+      if (item.deleted === true) return false;
+
       const createdKey = normalizeDateKey(item.createdAt);
       const rowStatus = isRead(item) ? 'read' : 'unread';
+      const archivedStatus = isArchived(item) ? 'archived' : 'active';
 
       return (
-        item.deleted !== true &&
         (!filters.category || String(item.category || '') === filters.category) &&
         (!filters.status || rowStatus === filters.status) &&
+        (!filters.archived || archivedStatus === filters.archived) &&
         (!filters.dateFrom || !createdKey || createdKey >= filters.dateFrom) &&
         (!filters.dateTo || !createdKey || createdKey <= filters.dateTo)
       );
@@ -98,7 +124,10 @@ export function createNotificationsModule(ctx) {
       sourceKey,
       status: 'unread',
       readBy: [],
-      deleted: false
+      archived: false,
+      resolved: false,
+      deleted: false,
+      createdAt: new Date()
     });
   }
 
@@ -106,7 +135,7 @@ export function createNotificationsModule(ctx) {
     const row = getRows().find((item) => item.id === notificationId);
     if (!row) return;
 
-    const currentUserId = String(state.currentUser?.uid || '');
+    const currentUserId = getCurrentUserId();
     const readBy = Array.isArray(row.readBy) ? [...row.readBy] : [];
 
     if (currentUserId && !readBy.includes(currentUserId)) {
@@ -129,29 +158,39 @@ export function createNotificationsModule(ctx) {
     showToast('Notificações marcadas como lidas.', 'success');
   }
 
+  async function archiveNotification(notificationId) {
+    const row = getRows().find((item) => item.id === notificationId);
+    if (!row) return;
+
+    await updateByPath('notifications', notificationId, {
+      archived: true,
+      archivedAt: new Date().toISOString(),
+      archivedBy: getCurrentUserId()
+    });
+
+    showToast('Notificação arquivada.', 'success');
+  }
+
+  async function resolveNotification(notificationId) {
+    const row = getRows().find((item) => item.id === notificationId);
+    if (!row) return;
+
+    await updateByPath('notifications', notificationId, {
+      resolved: true,
+      resolvedAt: new Date().toISOString(),
+      resolvedBy: getCurrentUserId()
+    });
+
+    showToast('Notificação resolvida.', 'success');
+  }
+
   function updateBellBadge() {
     const badge = document.getElementById('notifications-badge');
     if (!badge) return;
 
-    const unreadCount = getUnreadRows().filter((item) => item.deleted !== true).length;
+    const unreadCount = getUnreadRows().length;
     badge.textContent = String(unreadCount);
     badge.classList.toggle('hidden', unreadCount <= 0);
-  }
-
-  function formatNotificationDate(value) {
-    if (!value) return '-';
-
-    if (value?.toDate && typeof value.toDate === 'function') {
-      return value.toDate().toLocaleString('pt-BR');
-    }
-
-    const parsed = new Date(value);
-
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toLocaleString('pt-BR');
-    }
-
-    return String(value);
   }
 
   function renderList(rows) {
@@ -166,44 +205,34 @@ export function createNotificationsModule(ctx) {
 
     return `
       <div class="stack-list">
-        ${rows
-          .map(
-            (item) => `
-              <article class="list-item">
-                <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
-                  <div style="display:grid; gap:6px;">
-                    <strong>${escapeHtml(item.title || '-')}</strong>
-                    <span class="badge ${isRead(item) ? 'badge-neutral' : 'badge-warning'}">
-                      ${isRead(item) ? 'Lida' : 'Não lida'}
-                    </span>
-                  </div>
+        ${rows.map((item) => `
+          <article class="list-item">
+            <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+              <div style="display:grid; gap:6px;">
+                <strong>${escapeHtml(item.title || '-')}</strong>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <span class="badge ${isRead(item) ? 'badge-neutral' : 'badge-warning'}">
+                    ${isRead(item) ? 'Lida' : 'Não lida'}
+                  </span>
+                  ${isResolved(item) ? '<span class="badge badge-success">Resolvida</span>' : ''}
+                  ${isArchived(item) ? '<span class="badge badge-neutral">Arquivada</span>' : ''}
                 </div>
+              </div>
+            </div>
 
-                <span>${escapeHtml(item.message || '-')}</span>
+            <span>${escapeHtml(item.message || '-')}</span>
 
-                <small style="opacity:.78;">
-                  ${escapeHtml(item.category || '-')} · ${escapeHtml(formatNotificationDate(item.createdAt))}
-                </small>
+            <small style="opacity:.78;">
+              ${escapeHtml(item.category || '-')} · ${escapeHtml(formatNotificationDate(item.createdAt))}
+            </small>
 
-                <div class="form-actions" style="margin-top:12px; justify-content:flex-end;">
-                  ${
-                    isRead(item)
-                      ? ''
-                      : `
-                        <button
-                          class="btn btn-secondary"
-                          type="button"
-                          data-notification-read="${escapeHtml(item.id || '')}"
-                        >
-                          Marcar como lida
-                        </button>
-                      `
-                  }
-                </div>
-              </article>
-            `
-          )
-          .join('')}
+            <div class="form-actions" style="margin-top:12px; justify-content:flex-end;">
+              ${!isRead(item) ? `<button class="btn btn-secondary" type="button" data-notification-read="${escapeHtml(item.id || '')}">Marcar como lida</button>` : ''}
+              ${!isResolved(item) ? `<button class="btn btn-secondary" type="button" data-notification-resolve="${escapeHtml(item.id || '')}">Resolver</button>` : ''}
+              ${!isArchived(item) ? `<button class="btn btn-secondary" type="button" data-notification-archive="${escapeHtml(item.id || '')}">Arquivar</button>` : ''}
+            </div>
+          </article>
+        `).join('')}
       </div>
     `;
   }
@@ -246,6 +275,15 @@ export function createNotificationsModule(ctx) {
                 <option value="">Todos</option>
                 <option value="unread" ${filters.status === 'unread' ? 'selected' : ''}>Não lidas</option>
                 <option value="read" ${filters.status === 'read' ? 'selected' : ''}>Lidas</option>
+              </select>
+            </label>
+
+            <label>
+              Arquivamento
+              <select id="notifications-filter-archived">
+                <option value="">Todas</option>
+                <option value="active" ${filters.archived === 'active' ? 'selected' : ''}>Ativas</option>
+                <option value="archived" ${filters.archived === 'archived' ? 'selected' : ''}>Arquivadas</option>
               </select>
             </label>
 
@@ -295,9 +333,9 @@ export function createNotificationsModule(ctx) {
     modalRoot.querySelector('#notifications-filter-apply')?.addEventListener('click', () => {
       filters.category = modalRoot.querySelector('#notifications-filter-category')?.value || '';
       filters.status = modalRoot.querySelector('#notifications-filter-status')?.value || '';
+      filters.archived = modalRoot.querySelector('#notifications-filter-archived')?.value || '';
       filters.dateFrom = modalRoot.querySelector('#notifications-filter-date-from')?.value || '';
       filters.dateTo = modalRoot.querySelector('#notifications-filter-date-to')?.value || '';
-
       openNotificationsModal();
     });
 
@@ -305,16 +343,30 @@ export function createNotificationsModule(ctx) {
       filters = {
         category: '',
         status: '',
+        archived: '',
         dateFrom: '',
         dateTo: ''
       };
-
       openNotificationsModal();
     });
 
     modalRoot.querySelectorAll('[data-notification-read]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         await markAsRead(btn.dataset.notificationRead);
+        openNotificationsModal();
+      });
+    });
+
+    modalRoot.querySelectorAll('[data-notification-resolve]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        await resolveNotification(btn.dataset.notificationResolve);
+        openNotificationsModal();
+      });
+    });
+
+    modalRoot.querySelectorAll('[data-notification-archive]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        await archiveNotification(btn.dataset.notificationArchive);
         openNotificationsModal();
       });
     });
@@ -359,7 +411,8 @@ export function createNotificationsModule(ctx) {
         } else {
           await updateByPath('notifications', existing.id, {
             message: `${product.name || 'Produto'} com estoque em ${productQty}.`,
-            deleted: false
+            deleted: false,
+            archived: false
           });
         }
       } else if (existing) {
@@ -398,7 +451,8 @@ export function createNotificationsModule(ctx) {
         } else {
           await updateByPath('notifications', existing.id, {
             message: `Entrega de ${item.customerName || 'cliente'} aguardando ação.`,
-            deleted: false
+            deleted: false,
+            archived: false
           });
         }
       } else if (existing) {
@@ -438,7 +492,8 @@ export function createNotificationsModule(ctx) {
         } else {
           await updateByPath('notifications', existing.id, {
             message: `${item.clientName || 'Cliente'} · vencimento ${item.dueDate}.`,
-            deleted: false
+            deleted: false,
+            archived: false
           });
         }
       } else if (existing) {
@@ -478,7 +533,8 @@ export function createNotificationsModule(ctx) {
         } else {
           await updateByPath('notifications', existing.id, {
             message: `${item.supplierName || 'Fornecedor'} · vencimento ${item.dueDate}.`,
-            deleted: false
+            deleted: false,
+            archived: false
           });
         }
       } else if (existing) {
