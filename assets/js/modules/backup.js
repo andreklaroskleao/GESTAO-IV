@@ -1,16 +1,56 @@
 import { showToast } from './ui.js';
 
 export function createBackupModule(ctx) {
-  const {
-    state,
-    refs,
-    createDoc,
-    updateByPath,
-    auditModule
-  } = ctx;
+  const { state, refs, createDoc, updateByPath, auditModule } = ctx;
+
+  const SUPPORTED_COLLECTIONS = [
+    'users',
+    'products',
+    'sales',
+    'deliveries',
+    'clients',
+    'inventory_movements',
+    'audit_logs',
+    'cash_sessions',
+    'accounts_receivable',
+    'suppliers',
+    'accounts_payable',
+    'purchase_orders',
+    'purchases',
+    'settings',
+    'notifications'
+  ];
+
+  const IMPORTABLE_COLLECTIONS = [
+    'products',
+    'deliveries',
+    'clients',
+    'cash_sessions',
+    'accounts_receivable',
+    'inventory_movements',
+    'sales',
+    'settings',
+    'suppliers',
+    'accounts_payable',
+    'purchase_orders',
+    'purchases',
+    'notifications'
+  ];
+
+  const UPDATE_BY_ID_COLLECTIONS = [
+    'products',
+    'deliveries',
+    'clients',
+    'cash_sessions',
+    'accounts_receivable',
+    'suppliers',
+    'accounts_payable',
+    'settings',
+    'notifications'
+  ];
 
   function sanitizeDocs(rows) {
-    return rows.map((row) => {
+    return (rows || []).map((row) => {
       const copy = { ...row };
       delete copy.id;
       return copy;
@@ -20,7 +60,13 @@ export function createBackupModule(ctx) {
   function buildBackupObject() {
     return {
       exportedAt: new Date().toISOString(),
-      version: 1,
+      version: 2,
+      appVersion: 'GESTAO-IV',
+      exportedBy: {
+        uid: String(state.currentUser?.uid || ''),
+        name: String(state.currentUser?.fullName || ''),
+        email: String(state.currentUser?.email || '')
+      },
       data: {
         users: sanitizeDocs(state.users || []),
         products: sanitizeDocs(state.products || []),
@@ -35,6 +81,7 @@ export function createBackupModule(ctx) {
         accounts_payable: sanitizeDocs(state.accountsPayable || []),
         purchase_orders: sanitizeDocs(state.purchaseOrders || []),
         purchases: sanitizeDocs(state.purchases || []),
+        notifications: sanitizeDocs(state.notifications || []),
         settings: state.settings ? [{ ...state.settings }] : []
       }
     };
@@ -53,6 +100,7 @@ export function createBackupModule(ctx) {
 
     link.href = url;
     link.download = `backup-gestao-${stamp}.json`;
+
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -61,8 +109,8 @@ export function createBackupModule(ctx) {
     showToast('Backup exportado com sucesso.', 'success');
   }
 
-  async function importCollectionDocs(collectionName, docs) {
-    const refMap = {
+  function getCollectionRefMap() {
+    return {
       products: refs.products,
       deliveries: refs.deliveries,
       clients: refs.clients,
@@ -74,38 +122,105 @@ export function createBackupModule(ctx) {
       suppliers: refs.suppliers,
       accounts_payable: refs.accountsPayable,
       purchase_orders: refs.purchaseOrders,
-      purchases: refs.purchases
+      purchases: refs.purchases,
+      notifications: refs.notifications
     };
+  }
+
+  function normalizeParsedBackup(parsed) {
+    if (parsed?.data && typeof parsed.data === 'object') {
+      return parsed;
+    }
+
+    if (parsed?.collections && typeof parsed.collections === 'object') {
+      return {
+        exportedAt: parsed.exportedAt || new Date().toISOString(),
+        version: parsed.version || 1,
+        appVersion: parsed.appVersion || 'GESTAO-IV',
+        exportedBy: parsed.exportedBy || {},
+        data: parsed.collections
+      };
+    }
+
+    throw new Error('Arquivo de backup inválido.');
+  }
+
+  function validateBackupShape(parsed) {
+    const backup = normalizeParsedBackup(parsed);
+
+    if (!backup.data || typeof backup.data !== 'object') {
+      throw new Error('Backup sem estrutura de dados válida.');
+    }
+
+    const foundCollections = Object.keys(backup.data);
+    if (!foundCollections.length) {
+      throw new Error('Backup vazio.');
+    }
+
+    const recognizedCollections = foundCollections.filter((key) =>
+      SUPPORTED_COLLECTIONS.includes(key)
+    );
+
+    if (!recognizedCollections.length) {
+      throw new Error('Nenhuma coleção compatível foi encontrada no backup.');
+    }
+
+    recognizedCollections.forEach((key) => {
+      if (!Array.isArray(backup.data[key])) {
+        throw new Error(`A coleção "${key}" precisa ser uma lista.`);
+      }
+    });
+
+    return backup;
+  }
+
+  async function importCollectionDocs(collectionName, docs) {
+    const refMap = getCollectionRefMap();
+    const collectionRef = refMap[collectionName];
+    const summary = {
+      collectionName,
+      received: Array.isArray(docs) ? docs.length : 0,
+      updated: 0,
+      created: 0,
+      skipped: 0
+    };
+
+    if (!Array.isArray(docs) || !docs.length) {
+      return summary;
+    }
+
+    if (!collectionRef && !UPDATE_BY_ID_COLLECTIONS.includes(collectionName)) {
+      summary.skipped += docs.length;
+      return summary;
+    }
 
     for (const docItem of docs) {
       const clean = { ...docItem };
       delete clean.id;
 
-      try {
-        if (
-          docItem.id &&
-          [
-            'products',
-            'deliveries',
-            'clients',
-            'cash_sessions',
-            'accounts_receivable',
-            'suppliers',
-            'accounts_payable',
-            'settings'
-          ].includes(collectionName)
-        ) {
+      const isUpdateCandidate =
+        docItem?.id &&
+        UPDATE_BY_ID_COLLECTIONS.includes(collectionName);
+
+      if (isUpdateCandidate) {
+        try {
           await updateByPath(collectionName, docItem.id, clean);
+          summary.updated += 1;
           continue;
+        } catch (error) {
+          // Fallback para criação quando o documento ainda não existir.
         }
-      } catch (error) {
       }
 
-      const collectionRef = refMap[collectionName];
       if (collectionRef) {
         await createDoc(collectionRef, clean);
+        summary.created += 1;
+      } else {
+        summary.skipped += 1;
       }
     }
+
+    return summary;
   }
 
   async function importBackupFile(file) {
@@ -113,31 +228,36 @@ export function createBackupModule(ctx) {
       throw new Error('Nenhum arquivo selecionado.');
     }
 
-    const text = await file.text();
-    const parsed = JSON.parse(text);
-
-    if (!parsed?.data) {
-      throw new Error('Arquivo de backup inválido.');
+    if (!String(file.name || '').toLowerCase().endsWith('.json')) {
+      throw new Error('Selecione um arquivo JSON válido.');
     }
 
-    for (const key of [
-      'products',
-      'deliveries',
-      'clients',
-      'cash_sessions',
-      'accounts_receivable',
-      'inventory_movements',
-      'sales',
-      'settings',
-      'suppliers',
-      'accounts_payable',
-      'purchase_orders',
-      'purchases'
-    ]) {
-      if (Array.isArray(parsed.data[key])) {
-        await importCollectionDocs(key, parsed.data[key]);
+    const text = await file.text();
+    let parsed;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      throw new Error('O arquivo selecionado não contém JSON válido.');
+    }
+
+    const backup = validateBackupShape(parsed);
+    const summaries = [];
+
+    for (const key of IMPORTABLE_COLLECTIONS) {
+      if (Array.isArray(backup.data[key])) {
+        const result = await importCollectionDocs(key, backup.data[key]);
+        summaries.push(result);
       }
     }
+
+    const totals = summaries.reduce((acc, item) => {
+      acc.received += item.received;
+      acc.updated += item.updated;
+      acc.created += item.created;
+      acc.skipped += item.skipped;
+      return acc;
+    }, { received: 0, updated: 0, created: 0, skipped: 0 });
 
     await auditModule.log({
       module: 'backup',
@@ -145,10 +265,21 @@ export function createBackupModule(ctx) {
       entityType: 'system',
       entityId: '',
       entityLabel: 'Backup JSON',
-      description: 'Importação de backup executada.'
+      description: 'Importação de backup executada.',
+      metadata: {
+        fileName: file.name || '',
+        exportedAt: backup.exportedAt || '',
+        version: backup.version || 1,
+        appVersion: backup.appVersion || '',
+        totals,
+        summaries
+      }
     });
 
-    showToast('Importação concluída.', 'success');
+    showToast(
+      `Importação concluída. Criados: ${totals.created} · Atualizados: ${totals.updated} · Ignorados: ${totals.skipped}.`,
+      'success'
+    );
   }
 
   return {
