@@ -1,4 +1,4 @@
-import { escapeHtml, showToast, bindSubmitGuard, bindAsyncButton } from './ui.js';
+import { escapeHtml, renderBlocked, showToast, bindSubmitGuard, bindAsyncButton } from './ui.js';
 
 export function createProductsModule(ctx) {
   const {
@@ -13,47 +13,73 @@ export function createProductsModule(ctx) {
     auditModule
   } = ctx;
 
-  let movementFilters = {
-    product: '',
-    type: '',
-    reason: '',
-    dateFrom: '',
-    dateTo: ''
-  };
-
   let productFilters = {
-    text: '',
-    status: ''
+    query: '',
+    category: '',
+    supplier: '',
+    status: '',
+    stockView: ''
   };
-
-  let scannerStreamRef = null;
-  let scannerTimer = null;
-  let scannerReader = null;
-  let scannerRunning = false;
-  let isSavingProduct = false;
-
-  function isMobileDevice() {
-    return /Android|iPhone|iPad|iPod|Mobile|Windows Phone|Opera Mini/i.test(navigator.userAgent)
-      || window.matchMedia('(max-width: 768px)').matches;
-  }
 
   function getRows() {
     return (state.products || []).filter((item) => item.deleted !== true);
   }
 
-  function getFilteredProducts() {
-    return getRows().filter((product) => {
+  function getCategories() {
+    return [...new Set(getRows().map((item) => String(item.category || '').trim()).filter(Boolean))].sort();
+  }
+
+  function getSuppliers() {
+    return [...new Set(getRows().map((item) => String(item.supplier || '').trim()).filter(Boolean))].sort();
+  }
+
+  function getLowStockThreshold() {
+    return Number(state.settings?.lowStockThreshold || 5);
+  }
+
+  function getStockBadge(product) {
+    const quantity = Number(product.quantity || 0);
+    const threshold = getLowStockThreshold();
+
+    if (quantity <= 0) {
+      return { label: 'Sem estoque', className: 'badge-danger' };
+    }
+
+    if (quantity <= threshold) {
+      return { label: 'Estoque baixo', className: 'badge-warning' };
+    }
+
+    return { label: 'Normal', className: 'badge-success' };
+  }
+
+  function getFilteredRows() {
+    const q = String(productFilters.query || '').trim().toLowerCase();
+
+    return getRows().filter((item) => {
       const haystack = [
-        product.name,
-        product.barcode,
-        product.supplier,
-        product.brand,
-        product.manufacturer,
-        product.serialNumber
+        item.name,
+        item.barcode,
+        item.brand,
+        item.category,
+        item.supplier,
+        item.description
       ].join(' ').toLowerCase();
 
-      return (!productFilters.text || haystack.includes(productFilters.text.toLowerCase()))
-        && (!productFilters.status || product.status === productFilters.status);
+      const quantity = Number(item.quantity || 0);
+      const threshold = getLowStockThreshold();
+
+      let stockMatch = true;
+      if (productFilters.stockView === 'out') stockMatch = quantity <= 0;
+      if (productFilters.stockView === 'low') stockMatch = quantity > 0 && quantity <= threshold;
+      if (productFilters.stockView === 'normal') stockMatch = quantity > threshold;
+
+      return (
+        (!q || haystack.includes(q)) &&
+        (!productFilters.category || String(item.category || '') === productFilters.category) &&
+        (!productFilters.supplier || String(item.supplier || '') === productFilters.supplier) &&
+        (!productFilters.status || String(item.status || '') === productFilters.status) &&
+        stockMatch
+      );
     });
   }
 
@@ -61,718 +87,541 @@ export function createProductsModule(ctx) {
     return getRows().find((item) => item.id === state.editingProductId) || null;
   }
 
-  function getProductSummary() {
-    const allProducts = getRows();
-    const activeProducts = allProducts.filter((item) => item.status !== 'inativo');
-    const lowStockCount = activeProducts.filter(
-      (item) => Number(item.quantity || 0) <= Number(state.settings?.lowStockThreshold || 5)
-    ).length;
-    const inventoryValue = activeProducts.reduce(
-      (sum, item) => sum + (Number(item.quantity || 0) * Number(item.costPrice || 0)),
-      0
-    );
+  function fillProductForm(form, row) {
+    if (!form) return;
 
-    return {
-      totalCount: allProducts.length,
-      activeCount: activeProducts.length,
-      lowStockCount,
-      inventoryValue
-    };
+    form.elements.name.value = row?.name || '';
+    form.elements.barcode.value = row?.barcode || '';
+    form.elements.brand.value = row?.brand || '';
+    form.elements.category.value = row?.category || '';
+    form.elements.supplier.value = row?.supplier || '';
+    form.elements.costPrice.value = row?.costPrice ?? '';
+    form.elements.salePrice.value = row?.salePrice ?? '';
+    form.elements.quantity.value = row?.quantity ?? 0;
+    form.elements.status.value = row?.status || 'ativo';
+    form.elements.description.value = row?.description || '';
   }
 
-  function getBarcodeInput() {
-    return document.querySelector('#product-form input[name="barcode"]');
-  }
+  function hasDuplicateBarcode(barcode, ignoreId = '') {
+    const normalized = String(barcode || '').trim();
+    if (!normalized) return false;
 
-  function focusBarcodeInput() {
-    const input = getBarcodeInput();
-    if (input) {
-      input.focus();
-      input.select?.();
-    }
-  }
-
-  function getScannerModalRoot() {
-    return document.getElementById('modal-root');
-  }
-
-  function getScannerElements() {
-    return {
-      video: document.getElementById('product-barcode-video'),
-      status: document.getElementById('product-barcode-status')
-    };
-  }
-
-  function setScannerStatus(message) {
-    const { status } = getScannerElements();
-    if (!status) return;
-    status.textContent = message;
-  }
-
-  function openBarcodeScannerModal() {
-    const modalRoot = getScannerModalRoot();
-    if (!modalRoot) return;
-
-    modalRoot.innerHTML = `
-      <div class="modal-backdrop" id="product-barcode-modal-backdrop">
-        <div class="modal-card">
-          <div class="section-header">
-            <h2>Capturar código de barras</h2>
-            <button class="btn btn-secondary" type="button" id="product-barcode-modal-close">Fechar</button>
-          </div>
-
-          <div class="scanner-card">
-            <video id="product-barcode-video" class="video-preview" autoplay muted playsinline></video>
-            <div id="product-barcode-status" class="auth-hint" style="margin-top:10px;">Aguardando câmera...</div>
-            <div class="form-actions" style="margin-top:10px;">
-              <button class="btn btn-secondary" type="button" id="product-barcode-stop-btn">Parar leitura</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    const closeModal = () => {
-      closeBarcodeScannerModal();
-    };
-
-    modalRoot.querySelector('#product-barcode-modal-close')?.addEventListener('click', closeModal);
-    modalRoot.querySelector('#product-barcode-stop-btn')?.addEventListener('click', closeModal);
-    modalRoot.querySelector('#product-barcode-modal-backdrop')?.addEventListener('click', (event) => {
-      if (event.target.id === 'product-barcode-modal-backdrop') {
-        closeModal();
-      }
+    return getRows().some((item) => {
+      return String(item.id || '') !== String(ignoreId || '')
+        && String(item.barcode || '').trim() === normalized;
     });
-  }
-
-  function closeBarcodeScannerModal() {
-    const modalRoot = getScannerModalRoot();
-    stopBarcodeScanner();
-    if (modalRoot) {
-      modalRoot.innerHTML = '';
-    }
-  }
-
-  function setBarcodeValue(value) {
-    const input = getBarcodeInput();
-    if (!input) return;
-    input.value = String(value || '').trim();
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.focus();
-    input.select?.();
-  }
-
-  async function handleBarcodeCaptureClick() {
-    if (!isMobileDevice()) {
-      focusBarcodeInput();
-      showToast('No computador, clique no campo e use a leitora USB.', 'info');
-      return;
-    }
-
-    openBarcodeScannerModal();
-    await startBarcodeScanner();
-  }
-
-  async function startBarcodeScanner() {
-    if (scannerRunning) return;
-
-    setScannerStatus('Abrindo câmera traseira...');
-    stopBarcodeScanner();
-
-    try {
-      if ('BarcodeDetector' in window) {
-        await startNativeBarcodeScanner();
-        return;
-      }
-
-      await startZxingBarcodeScanner();
-    } catch (error) {
-      console.error('Erro ao iniciar leitura no cadastro:', error);
-
-      try {
-        await startZxingBarcodeScanner();
-      } catch (fallbackError) {
-        console.error('Erro ZXing no cadastro:', fallbackError);
-        stopBarcodeScanner();
-        showToast('Não foi possível abrir a câmera para ler o código.', 'error');
-        closeBarcodeScannerModal();
-      }
-    }
-  }
-
-  async function startNativeBarcodeScanner() {
-    const { video } = getScannerElements();
-
-    if (!navigator.mediaDevices?.getUserMedia || !video) {
-      throw new Error('Câmera indisponível.');
-    }
-
-    scannerStreamRef = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } },
-      audio: false
-    });
-
-    video.srcObject = scannerStreamRef;
-    await video.play();
-
-    const detector = new BarcodeDetector({
-      formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e', 'code_39', 'itf']
-    });
-
-    scannerRunning = true;
-    setScannerStatus('Aponte a câmera para o código de barras do produto.');
-
-    scannerTimer = window.setInterval(async () => {
-      try {
-        const codes = await detector.detect(video);
-        if (!codes.length) return;
-
-        const value = String(codes[0].rawValue || '').trim();
-        if (!value) return;
-
-        setBarcodeValue(value);
-        showToast('Código de barras capturado.', 'success');
-        closeBarcodeScannerModal();
-      } catch (error) {
-        console.error('Erro ao detectar código no cadastro:', error);
-      }
-    }, 600);
-  }
-
-  async function startZxingBarcodeScanner() {
-    const { video } = getScannerElements();
-
-    if (!window.ZXing || !video) {
-      throw new Error('ZXing não disponível.');
-    }
-
-    const ZXingLib = window.ZXing;
-    scannerReader = new ZXingLib.BrowserMultiFormatReader();
-
-    scannerRunning = true;
-    setScannerStatus('Aponte a câmera para o código de barras do produto.');
-
-    await scannerReader.decodeFromConstraints(
-      {
-        video: { facingMode: { ideal: 'environment' } }
-      },
-      video,
-      (result, error) => {
-        if (result) {
-          const value = String(result.text || '').trim();
-          if (!value) return;
-
-          setBarcodeValue(value);
-          showToast('Código de barras capturado.', 'success');
-          closeBarcodeScannerModal();
-        }
-
-        if (error && error.name !== 'NotFoundException') {
-          console.error('ZXing cadastro erro:', error);
-        }
-      }
-    );
-  }
-
-  function stopBarcodeScanner() {
-    if (scannerTimer) {
-      window.clearInterval(scannerTimer);
-      scannerTimer = null;
-    }
-
-    if (scannerReader) {
-      try {
-        scannerReader.reset();
-      } catch (error) {
-        console.error(error);
-      }
-      scannerReader = null;
-    }
-
-    if (scannerStreamRef) {
-      scannerStreamRef.getTracks().forEach((track) => track.stop());
-      scannerStreamRef = null;
-    }
-
-    const { video } = getScannerElements();
-    if (video) {
-      try {
-        video.pause();
-      } catch (error) {
-        console.error(error);
-      }
-      video.srcObject = null;
-    }
-
-    scannerRunning = false;
   }
 
   async function saveProduct() {
-    if (isSavingProduct) return;
-    isSavingProduct = true;
+    const form = document.querySelector('#product-form');
+    if (!form) return;
 
-    try {
-      const form = document.querySelector('#product-form');
-      if (!form) return;
+    const payload = Object.fromEntries(new FormData(form).entries());
 
-      const payload = Object.fromEntries(new FormData(form).entries());
+    payload.costPrice = toNumber(payload.costPrice);
+    payload.salePrice = toNumber(payload.salePrice);
+    payload.quantity = Math.max(0, Number(payload.quantity || 0));
+    payload.deleted = false;
 
-      payload.costPrice = toNumber(payload.costPrice);
-      payload.salePrice = toNumber(payload.salePrice);
-      payload.quantity = toNumber(payload.quantity);
-      payload.status = payload.status || 'ativo';
-      payload.deleted = false;
-
-      if (!payload.name) {
-        alert('Informe o nome do produto.');
-        return;
-      }
-
-      if (state.editingProductId) {
-        const current = getEditingProduct();
-
-        await updateByPath('products', state.editingProductId, payload);
-
-        await auditModule.log({
-          module: 'products',
-          action: 'update',
-          entityType: 'product',
-          entityId: state.editingProductId,
-          entityLabel: payload.name || current?.name || '',
-          description: 'Produto atualizado.',
-          metadata: {
-            previousName: current?.name || '',
-            newName: payload.name || ''
-          }
-        });
-
-        state.editingProductId = null;
-        showToast('Produto atualizado.', 'success');
-      } else {
-        const createdId = await createDoc(refs.products, payload);
-
-        await auditModule.log({
-          module: 'products',
-          action: 'create',
-          entityType: 'product',
-          entityId: createdId,
-          entityLabel: payload.name || '',
-          description: 'Produto cadastrado.'
-        });
-
-        showToast('Produto cadastrado.', 'success');
-      }
-
-      closeProductFormModal();
-      render();
-    } finally {
-      isSavingProduct = false;
+    if (!String(payload.name || '').trim()) {
+      alert('Informe o nome do produto.');
+      return;
     }
-  }
 
-  function fillEditingForm(form) {
-    const editing = getEditingProduct();
-    if (!editing || !form) return;
+    if (payload.salePrice < 0 || payload.costPrice < 0) {
+      alert('Os preços não podem ser negativos.');
+      return;
+    }
 
-    Object.entries(editing).forEach(([key, value]) => {
-      if (form.elements[key]) {
-        form.elements[key].value = value ?? '';
+    if (hasDuplicateBarcode(payload.barcode, state.editingProductId)) {
+      alert('Já existe um produto com este código de barras.');
+      return;
+    }
+
+    if (state.editingProductId) {
+      const current = getEditingProduct();
+      const previousQuantity = Number(current?.quantity || 0);
+      const nextQuantity = Number(payload.quantity || 0);
+
+      await updateByPath('products', state.editingProductId, payload);
+
+      await auditModule.log({
+        module: 'products',
+        action: 'update',
+        entityType: 'product',
+        entityId: state.editingProductId,
+        entityLabel: payload.name || '',
+        description: 'Produto atualizado.'
+      });
+
+      if (previousQuantity !== nextQuantity) {
+        const actorId = String(state.currentUser?.uid || state.currentUser?.fullName || '');
+
+        await createDoc(refs.inventoryMovements, {
+          productId: state.editingProductId,
+          productName: payload.name || '',
+          productBarcode: payload.barcode || '',
+          type: 'ajuste',
+          quantity: nextQuantity,
+          previousQuantity,
+          newQuantity: nextQuantity,
+          quantityDelta: nextQuantity - previousQuantity,
+          reason: 'Alteração direta no cadastro do produto',
+          notes: 'Ajuste automático por edição de produto',
+          sourceType: 'product_edit_form',
+          sourceId: state.editingProductId,
+          userId: actorId,
+          userName: String(state.currentUser?.fullName || ''),
+          userEmail: String(state.currentUser?.email || ''),
+          deleted: false,
+          createdAt: new Date()
+        });
+
+        await updateByPath('products', state.editingProductId, {
+          lastStockAdjustmentAt: new Date().toISOString(),
+          lastStockAdjustmentBy: actorId,
+          lastStockAdjustmentReason: 'Alteração direta no cadastro do produto'
+        });
       }
-    });
-  }
 
-  function renderBarcodeButton() {
-    return `
-      <button class="icon-btn" type="button" id="product-barcode-capture-btn" title="Capturar código de barras" aria-label="Capturar código de barras">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M4 7v10"></path>
-          <path d="M7 7v10"></path>
-          <path d="M10 7v10"></path>
-          <path d="M14 7v10"></path>
-          <path d="M17 7v10"></path>
-          <path d="M20 7v10"></path>
-        </svg>
-      </button>
-    `;
-  }
+      state.editingProductId = null;
+      showToast('Produto atualizado com sucesso.', 'success');
+    } else {
+      const createdId = await createDoc(refs.products, payload);
 
-  function getProductFormHtml() {
-    const editing = getEditingProduct();
+      await auditModule.log({
+        module: 'products',
+        action: 'create',
+        entityType: 'product',
+        entityId: createdId,
+        entityLabel: payload.name || '',
+        description: 'Produto cadastrado.'
+      });
 
-    return `
-      <div class="form-modal-body">
-        <div class="section-header">
-          <h2>${editing ? 'Editar produto' : 'Novo produto'}</h2>
-          <span class="muted">${editing ? 'Atualize os dados do produto.' : 'Cadastro rápido em modal.'}</span>
-        </div>
+      if (Number(payload.quantity || 0) > 0) {
+        const actorId = String(state.currentUser?.uid || state.currentUser?.fullName || '');
 
-        <form id="product-form" class="form-grid mobile-optimized">
-          <div class="form-section" style="grid-column:1 / -1;">
-            <div class="form-section-title">
-              <h3>1. Identificação</h3>
-              <span>Dados principais do produto</span>
-            </div>
-            <div class="soft-divider"></div>
+        await createDoc(refs.inventoryMovements, {
+          productId: createdId,
+          productName: payload.name || '',
+          productBarcode: payload.barcode || '',
+          type: 'entrada',
+          quantity: Number(payload.quantity || 0),
+          previousQuantity: 0,
+          newQuantity: Number(payload.quantity || 0),
+          quantityDelta: Number(payload.quantity || 0),
+          reason: 'Estoque inicial do cadastro',
+          notes: 'Movimentação automática de criação do produto',
+          sourceType: 'product_create_form',
+          sourceId: createdId,
+          userId: actorId,
+          userName: String(state.currentUser?.fullName || ''),
+          userEmail: String(state.currentUser?.email || ''),
+          deleted: false,
+          createdAt: new Date()
+        });
 
-            <div class="form-grid">
-              <label>Nome do produto<input name="name" required /></label>
-              <label>Número de série<input name="serialNumber" /></label>
+        await updateByPath('products', createdId, {
+          lastStockAdjustmentAt: new Date().toISOString(),
+          lastStockAdjustmentBy: actorId,
+          lastStockAdjustmentReason: 'Estoque inicial do cadastro'
+        });
+      }
 
-              <label>
-                Código de barras
-                <div class="input-with-action">
-                  <input name="barcode" />
-                  ${renderBarcodeButton()}
-                </div>
-                <span class="mini-help">No celular, toque no ícone. No computador, use a leitora no campo.</span>
-              </label>
+      showToast('Produto cadastrado com sucesso.', 'success');
+    }
 
-              <label>Status
-                <select name="status">
-                  <option value="ativo">Ativo</option>
-                  <option value="inativo">Inativo</option>
-                </select>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-section" style="grid-column:1 / -1;">
-            <div class="form-section-title">
-              <h3>2. Comercial e estoque</h3>
-              <span>Valores e quantidade</span>
-            </div>
-            <div class="soft-divider"></div>
-
-            <div class="form-grid">
-              <label>Preço de custo<input name="costPrice" type="number" step="0.01" min="0" /></label>
-              <label>Preço de venda<input name="salePrice" type="number" step="0.01" min="0" required /></label>
-              <label>Quantidade<input name="quantity" type="number" step="1" min="0" required /></label>
-              <label>Fornecedor
-                <input name="supplier" list="suppliers-datalist" />
-                <datalist id="suppliers-datalist">
-                  ${(state.suppliers || [])
-                    .filter((item) => item.deleted !== true && item.active !== false)
-                    .map((item) => `<option value="${escapeHtml(item.name || '')}"></option>`)
-                    .join('')}
-                </datalist>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-section" style="grid-column:1 / -1;">
-            <div class="form-section-title">
-              <h3>3. Marca e fabricante</h3>
-              <span>Complemento do cadastro</span>
-            </div>
-            <div class="soft-divider"></div>
-
-            <div class="form-grid">
-              <label>Marca<input name="brand" /></label>
-              <label>Fabricante<input name="manufacturer" /></label>
-            </div>
-          </div>
-
-          <div class="form-actions" style="grid-column: 1 / -1;">
-            <button class="btn btn-primary" type="submit">${editing ? 'Salvar alterações' : 'Cadastrar produto'}</button>
-            <button class="btn btn-secondary" type="button" id="product-form-cancel-btn">Cancelar</button>
-          </div>
-        </form>
-      </div>
-    `;
+    render();
   }
 
   function openProductFormModal(productId = null) {
     state.editingProductId = productId;
+
     const modalRoot = document.getElementById('modal-root');
     if (!modalRoot) return;
 
     modalRoot.innerHTML = `
       <div class="modal-backdrop" id="product-form-modal-backdrop">
-        <div class="modal-card form-modal-card">
-          ${getProductFormHtml()}
+        <div class="modal-card" style="max-width:880px;">
+          <div class="section-header">
+            <h2>${state.editingProductId ? 'Editar produto' : 'Novo produto'}</h2>
+            <button class="btn btn-secondary" type="button" id="product-form-close-btn">Fechar</button>
+          </div>
+
+          <form id="product-form" class="form-grid">
+            <label>
+              Nome
+              <input name="name" required />
+            </label>
+
+            <label>
+              Código de barras
+              <input name="barcode" />
+            </label>
+
+            <label>
+              Marca
+              <input name="brand" />
+            </label>
+
+            <label>
+              Categoria
+              <input name="category" list="product-category-list" />
+              <datalist id="product-category-list">
+                ${getCategories().map((item) => `<option value="${escapeHtml(item)}"></option>`).join('')}
+              </datalist>
+            </label>
+
+            <label>
+              Fornecedor
+              <input name="supplier" list="product-supplier-list" />
+              <datalist id="product-supplier-list">
+                ${getSuppliers().map((item) => `<option value="${escapeHtml(item)}"></option>`).join('')}
+              </datalist>
+            </label>
+
+            <label>
+              Preço de custo
+              <input name="costPrice" type="number" min="0" step="0.01" />
+            </label>
+
+            <label>
+              Preço de venda
+              <input name="salePrice" type="number" min="0" step="0.01" required />
+            </label>
+
+            <label>
+              Quantidade
+              <input name="quantity" type="number" min="0" step="1" required />
+            </label>
+
+            <label>
+              Status
+              <select name="status">
+                <option value="ativo">Ativo</option>
+                <option value="inativo">Inativo</option>
+              </select>
+            </label>
+
+            <label style="grid-column:1 / -1;">
+              Descrição
+              <textarea name="description" rows="4"></textarea>
+            </label>
+
+            <div class="form-actions" style="grid-column:1 / -1;">
+              <button class="btn btn-primary" type="submit">
+                ${state.editingProductId ? 'Salvar alterações' : 'Cadastrar produto'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     `;
 
     const closeModal = () => {
-      closeProductFormModal();
+      modalRoot.innerHTML = '';
+      state.editingProductId = null;
     };
 
+    modalRoot.querySelector('#product-form-close-btn')?.addEventListener('click', closeModal);
     modalRoot.querySelector('#product-form-modal-backdrop')?.addEventListener('click', (event) => {
-      if (event.target.id === 'product-form-modal-backdrop') {
-        closeModal();
-      }
+      if (event.target.id === 'product-form-modal-backdrop') closeModal();
     });
 
-    modalRoot.querySelector('#product-form-cancel-btn')?.addEventListener('click', closeModal);
-
     const form = modalRoot.querySelector('#product-form');
-    fillEditingForm(form);
-    bindSubmitGuard(form, saveProduct, { busyLabel: 'Salvando...' });
-    bindAsyncButton(modalRoot.querySelector('#product-barcode-capture-btn'), handleBarcodeCaptureClick, { busyLabel: 'Abrindo...' });
+    fillProductForm(form, getEditingProduct());
+
+    bindSubmitGuard(form, async () => {
+      await saveProduct();
+      closeModal();
+    }, { busyLabel: 'Salvando...' });
   }
 
-  function closeProductFormModal() {
-    stopBarcodeScanner();
-    const modalRoot = document.getElementById('modal-root');
-    if (modalRoot) {
-      modalRoot.innerHTML = '';
-    }
-    state.editingProductId = null;
-  }
-
-  function openProductActions(productId) {
+  function openProductMovementsModal(productId) {
     const product = getRows().find((item) => item.id === productId);
     if (!product) return;
 
-    if (product.status === 'inativo') {
-      window.openActionsSheet?.('Ações do produto', [
-        {
-          label: 'Editar',
-          className: 'btn btn-secondary',
-          onClick: async () => {
-            openProductFormModal(productId);
-          }
-        },
-        {
-          label: 'Reativar',
-          className: 'btn btn-secondary',
-          onClick: async () => {
-            await updateByPath('products', productId, {
-              deleted: false,
-              status: 'ativo'
-            });
+    const modalRoot = document.getElementById('modal-root');
+    if (!modalRoot) return;
 
-            await auditModule.log({
-              module: 'products',
-              action: 'reactivate',
-              entityType: 'product',
-              entityId: productId,
-              entityLabel: product.name || '',
-              description: 'Produto reativado.'
-            });
+    const rows = inventoryModule.getFilteredMovements({})
+      .filter((item) => String(item.productId || '') === String(productId));
 
-            showToast('Produto reativado.', 'success');
-            render();
-          }
-        }
-      ]);
-      return;
-    }
-
-    window.openActionsSheet?.('Ações do produto', [
-      {
-        label: 'Editar',
-        className: 'btn btn-secondary',
-        onClick: async () => {
-          openProductFormModal(productId);
-        }
-      },
-      {
-        label: 'Movimentar estoque',
-        className: 'btn btn-secondary',
-        onClick: async () => {
-          inventoryModule.renderMovementModal?.(productId, render);
-        }
-      },
-      {
-        label: 'Inativar',
-        className: 'btn btn-danger',
-        onClick: async () => {
-          await updateByPath('products', productId, {
-            deleted: false,
-            status: 'inativo'
-          });
-
-          await auditModule.log({
-            module: 'products',
-            action: 'inactivate',
-            entityType: 'product',
-            entityId: productId,
-            entityLabel: product.name || '',
-            description: 'Produto inativado.'
-          });
-
-          showToast('Produto inativado.', 'success');
-          render();
-        }
-      }
-    ]);
-  }
-
-  function renderActionButtons(product) {
-    return `
-      <div class="actions-inline-compact">
-        <button class="icon-action-btn" type="button" data-product-edit="${product.id}" title="Editar" aria-label="Editar">✏️</button>
-        ${product.status !== 'inativo'
-          ? `<button class="icon-action-btn info" type="button" data-product-move="${product.id}" title="Movimentar estoque" aria-label="Movimentar estoque">📦</button>`
-          : ''
-        }
-        <button class="icon-action-btn" type="button" data-product-more="${product.id}" title="Mais ações" aria-label="Mais ações">⋯</button>
-      </div>
-    `;
-  }
-
-  function bindProductTableActions(scope) {
-    scope.querySelectorAll('[data-product-edit]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        openProductFormModal(btn.dataset.productEdit);
-      });
-    });
-
-    scope.querySelectorAll('[data-product-move]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        inventoryModule.renderMovementModal?.(btn.dataset.productMove, render);
-      });
-    });
-
-    scope.querySelectorAll('[data-product-more]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        openProductActions(btn.dataset.productMore);
-      });
-    });
-  }
-
-  function bindEvents() {
-    bindAsyncButton(tabEls.products.querySelector('#open-product-form-btn'), async () => {
-      openProductFormModal(null);
-    }, { busyLabel: 'Abrindo...' });
-
-    tabEls.products.querySelector('#product-filter-apply')?.addEventListener('click', () => {
-      productFilters.text = tabEls.products.querySelector('#product-filter-input')?.value || '';
-      productFilters.status = tabEls.products.querySelector('#product-status-filter')?.value || '';
-      render();
-    });
-
-    bindAsyncButton(tabEls.products.querySelector('#product-filter-clear'), async () => {
-      productFilters = {
-        text: '',
-        status: ''
-      };
-      render();
-    }, { busyLabel: 'Limpando...' });
-
-    tabEls.products.querySelector('#movement-filter-apply')?.addEventListener('click', () => {
-      movementFilters.product = tabEls.products.querySelector('#movement-filter-product')?.value || '';
-      movementFilters.type = tabEls.products.querySelector('#movement-filter-type')?.value || '';
-      movementFilters.reason = tabEls.products.querySelector('#movement-filter-reason')?.value || '';
-      movementFilters.dateFrom = tabEls.products.querySelector('#movement-filter-date-from')?.value || '';
-      movementFilters.dateTo = tabEls.products.querySelector('#movement-filter-date-to')?.value || '';
-      render();
-    });
-
-    bindAsyncButton(tabEls.products.querySelector('#movement-filter-clear'), async () => {
-      movementFilters = {
-        product: '',
-        type: '',
-        reason: '',
-        dateFrom: '',
-        dateTo: ''
-      };
-      render();
-    }, { busyLabel: 'Limpando...' });
-
-    bindProductTableActions(tabEls.products);
-  }
-
-  function render() {
-    const rows = getFilteredProducts();
-    const summary = getProductSummary();
-
-    tabEls.products.innerHTML = `
-      <div class="section-stack">
-        <div class="cards-grid">
-          <div class="metric-card"><span>Total de produtos</span><strong>${summary.totalCount}</strong></div>
-          <div class="metric-card"><span>Produtos ativos</span><strong>${summary.activeCount}</strong></div>
-          <div class="metric-card"><span>Estoque baixo</span><strong>${summary.lowStockCount}</strong></div>
-          <div class="metric-card"><span>Valor em custo</span><strong>${currency(summary.inventoryValue)}</strong></div>
-        </div>
-
-        <div class="entity-toolbar panel">
-          <div>
-            <h2 style="margin:0 0 6px;">Produtos</h2>
-            <p class="muted">Cadastro em modal e listas com rolagem interna.</p>
-          </div>
-
-          <div class="entity-toolbar-actions">
-            <button class="btn btn-primary" type="button" id="open-product-form-btn">Novo produto</button>
-          </div>
-        </div>
-
-        <div class="table-card">
+    modalRoot.innerHTML = `
+      <div class="modal-backdrop" id="product-movements-modal-backdrop">
+        <div class="modal-card" style="max-width:1100px;">
           <div class="section-header">
-            <h2>Lista de produtos</h2>
-            <span class="muted">${rows.length} resultado(s)</span>
+            <h2>Movimentações do produto</h2>
+            <button class="btn btn-secondary" type="button" id="product-movements-close-btn">Fechar</button>
           </div>
 
-          <div class="search-row">
-            <input id="product-filter-input" placeholder="Pesquisar por nome, código, fornecedor, marca ou fabricante" value="${escapeHtml(productFilters.text)}" />
-            <select id="product-status-filter">
-              <option value="">Todos os status</option>
-              <option value="ativo" ${productFilters.status === 'ativo' ? 'selected' : ''}>Ativo</option>
-              <option value="inativo" ${productFilters.status === 'inativo' ? 'selected' : ''}>Inativo</option>
-            </select>
-            <button class="btn btn-secondary" type="button" id="product-filter-apply">Filtrar</button>
-            <button class="btn btn-secondary" type="button" id="product-filter-clear">Limpar</button>
+          <div class="empty-state" style="text-align:left; margin-bottom:16px;">
+            <strong>${escapeHtml(product.name || '-')}</strong>
+            <span>Código: ${escapeHtml(product.barcode || 'Sem código')}</span>
+            <span>Estoque atual: ${escapeHtml(String(product.quantity ?? 0))}</span>
+            <span>Último ajuste: ${escapeHtml(product.lastStockAdjustmentReason || '-')}</span>
           </div>
 
-          <div class="table-wrap scroll-dual" style="margin-top:14px;">
+          <div class="table-wrap scroll-dual">
             <table>
               <thead>
                 <tr>
-                  <th>Produto</th>
-                  <th>Série</th>
-                  <th>Marca</th>
-                  <th>Fornecedor</th>
-                  <th>Custo</th>
-                  <th>Venda</th>
+                  <th>Data</th>
+                  <th>Tipo</th>
                   <th>Qtd</th>
-                  <th>Status</th>
-                  <th>Ações</th>
+                  <th>Anterior</th>
+                  <th>Novo</th>
+                  <th>Motivo</th>
+                  <th>Usuário</th>
                 </tr>
               </thead>
-              <tbody id="products-tbody">
-                ${rows.map((product) => `
-                  <tr>
-                    <td>${escapeHtml(product.name || '-')}</td>
-                    <td>${escapeHtml(product.serialNumber || '-')}</td>
-                    <td>${escapeHtml(product.brand || '-')}</td>
-                    <td>${escapeHtml(product.supplier || '-')}</td>
-                    <td>${currency(product.costPrice || 0)}</td>
-                    <td>${currency(product.salePrice || 0)}</td>
-                    <td>${product.quantity ?? 0}</td>
-                    <td><span class="tag ${product.status === 'ativo' ? 'success' : 'warning'}">${escapeHtml(product.status || 'ativo')}</span></td>
-                    <td>${renderActionButtons(product)}</td>
-                  </tr>
-                `).join('') || '<tr><td colspan="9">Nenhum produto cadastrado.</td></tr>'}
+              <tbody>
+                ${
+                  rows.map((item) => `
+                    <tr>
+                      <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
+                      <td>${escapeHtml(item.type || '-')}</td>
+                      <td>${escapeHtml(String(item.quantity ?? '-'))}</td>
+                      <td>${escapeHtml(String(item.previousQuantity ?? '-'))}</td>
+                      <td>${escapeHtml(String(item.newQuantity ?? '-'))}</td>
+                      <td>${escapeHtml(item.reason || '-')}</td>
+                      <td>${escapeHtml(item.userName || '-')}</td>
+                    </tr>
+                  `).join('') || `
+                    <tr>
+                      <td colspan="7">Nenhuma movimentação encontrada para este produto.</td>
+                    </tr>
+                  `
+                }
               </tbody>
             </table>
           </div>
         </div>
+      </div>
+    `;
+
+    const closeModal = () => {
+      modalRoot.innerHTML = '';
+    };
+
+    modalRoot.querySelector('#product-movements-close-btn')?.addEventListener('click', closeModal);
+    modalRoot.querySelector('#product-movements-modal-backdrop')?.addEventListener('click', (event) => {
+      if (event.target.id === 'product-movements-modal-backdrop') closeModal();
+    });
+  }
+
+  function openDeleteProductModal(productId) {
+    const product = getRows().find((item) => item.id === productId);
+    if (!product) return;
+
+    window.openConfirmDeleteModal?.({
+      title: 'Excluir produto',
+      message: `Deseja realmente excluir "${product.name || 'produto'}"?`,
+      confirmLabel: 'Excluir produto',
+      onConfirm: async () => {
+        await updateByPath('products', product.id, {
+          deleted: true,
+          status: 'inativo'
+        });
+
+        await auditModule.log({
+          module: 'products',
+          action: 'delete',
+          entityType: 'product',
+          entityId: product.id,
+          entityLabel: product.name || '',
+          description: 'Produto excluído logicamente.'
+        });
+
+        showToast('Produto excluído com sucesso.', 'success');
+      }
+    });
+  }
+
+  function bindEvents() {
+    bindAsyncButton(
+      tabEls.products.querySelector('#open-product-form-btn'),
+      async () => openProductFormModal(null),
+      { busyLabel: 'Abrindo...' }
+    );
+
+    tabEls.products.querySelector('#product-filter-apply')?.addEventListener('click', () => {
+      productFilters.query = tabEls.products.querySelector('#product-filter-query')?.value || '';
+      productFilters.category = tabEls.products.querySelector('#product-filter-category')?.value || '';
+      productFilters.supplier = tabEls.products.querySelector('#product-filter-supplier')?.value || '';
+      productFilters.status = tabEls.products.querySelector('#product-filter-status')?.value || '';
+      productFilters.stockView = tabEls.products.querySelector('#product-filter-stock')?.value || '';
+      render();
+    });
+
+    bindAsyncButton(
+      tabEls.products.querySelector('#product-filter-clear'),
+      async () => {
+        productFilters = {
+          query: '',
+          category: '',
+          supplier: '',
+          status: '',
+          stockView: ''
+        };
+        render();
+      },
+      { busyLabel: 'Limpando...' }
+    );
+
+    tabEls.products.querySelectorAll('[data-edit-product]').forEach((btn) => {
+      btn.addEventListener('click', () => openProductFormModal(btn.dataset.editProduct));
+    });
+
+    tabEls.products.querySelectorAll('[data-stock-product]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        inventoryModule.renderMovementModal(btn.dataset.stockProduct, render);
+      });
+    });
+
+    tabEls.products.querySelectorAll('[data-product-movements]').forEach((btn) => {
+      btn.addEventListener('click', () => openProductMovementsModal(btn.dataset.productMovements));
+    });
+
+    tabEls.products.querySelectorAll('[data-delete-product]').forEach((btn) => {
+      btn.addEventListener('click', () => openDeleteProductModal(btn.dataset.deleteProduct));
+    });
+  }
+
+  function renderSummary() {
+    const rows = getRows();
+    const threshold = getLowStockThreshold();
+
+    const totalProducts = rows.length;
+    const activeProducts = rows.filter((item) => String(item.status || 'ativo') === 'ativo').length;
+    const lowStock = rows.filter((item) => {
+      const qty = Number(item.quantity || 0);
+      return qty > 0 && qty <= threshold;
+    }).length;
+    const outOfStock = rows.filter((item) => Number(item.quantity || 0) <= 0).length;
+
+    return `
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Produtos</span>
+          <strong class="stat-value">${totalProducts}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Ativos</span>
+          <strong class="stat-value">${activeProducts}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Estoque baixo</span>
+          <strong class="stat-value">${lowStock}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Sem estoque</span>
+          <strong class="stat-value">${outOfStock}</strong>
+        </div>
+      </div>
+    `;
+  }
+
+  function render() {
+    if (!tabEls.products) return;
+
+    const rows = getFilteredRows();
+    const categories = getCategories();
+    const suppliers = getSuppliers();
+
+    tabEls.products.innerHTML = `
+      <div class="section-stack">
+        ${renderSummary()}
 
         <div class="table-card">
           <div class="section-header">
-            <h2>Movimentação de estoque</h2>
-            <span class="muted">Histórico e rastreabilidade</span>
+            <h2>Produtos</h2>
+            <div class="form-actions">
+              <button class="btn btn-primary" type="button" id="open-product-form-btn">Novo produto</button>
+            </div>
           </div>
 
           <div class="search-row" style="margin-bottom:14px;">
-            <input id="movement-filter-product" placeholder="Produto" value="${escapeHtml(movementFilters.product)}" />
-            <select id="movement-filter-type">
-              <option value="">Todos os tipos</option>
-              <option value="entrada" ${movementFilters.type === 'entrada' ? 'selected' : ''}>Entrada</option>
-              <option value="saida" ${movementFilters.type === 'saida' ? 'selected' : ''}>Saída</option>
-              <option value="ajuste" ${movementFilters.type === 'ajuste' ? 'selected' : ''}>Ajuste</option>
+            <input id="product-filter-query" placeholder="Buscar por nome, código, marca..." value="${escapeHtml(productFilters.query)}" />
+
+            <select id="product-filter-category">
+              <option value="">Todas as categorias</option>
+              ${categories.map((item) => `
+                <option value="${escapeHtml(item)}" ${productFilters.category === item ? 'selected' : ''}>${escapeHtml(item)}</option>
+              `).join('')}
             </select>
-            <input id="movement-filter-reason" placeholder="Motivo" value="${escapeHtml(movementFilters.reason)}" />
-            <input id="movement-filter-date-from" type="date" value="${movementFilters.dateFrom}" />
-            <input id="movement-filter-date-to" type="date" value="${movementFilters.dateTo}" />
-            <button class="btn btn-secondary" type="button" id="movement-filter-apply">Filtrar</button>
-            <button class="btn btn-secondary" type="button" id="movement-filter-clear">Limpar</button>
+
+            <select id="product-filter-supplier">
+              <option value="">Todos os fornecedores</option>
+              ${suppliers.map((item) => `
+                <option value="${escapeHtml(item)}" ${productFilters.supplier === item ? 'selected' : ''}>${escapeHtml(item)}</option>
+              `).join('')}
+            </select>
+
+            <select id="product-filter-status">
+              <option value="">Todos os status</option>
+              <option value="ativo" ${productFilters.status === 'ativo' ? 'selected' : ''}>Ativo</option>
+              <option value="inativo" ${productFilters.status === 'inativo' ? 'selected' : ''}>Inativo</option>
+            </select>
+
+            <select id="product-filter-stock">
+              <option value="">Todo estoque</option>
+              <option value="out" ${productFilters.stockView === 'out' ? 'selected' : ''}>Sem estoque</option>
+              <option value="low" ${productFilters.stockView === 'low' ? 'selected' : ''}>Estoque baixo</option>
+              <option value="normal" ${productFilters.stockView === 'normal' ? 'selected' : ''}>Normal</option>
+            </select>
+
+            <button class="btn btn-secondary" type="button" id="product-filter-apply">Filtrar</button>
+            <button class="btn btn-secondary" type="button" id="product-filter-clear">Limpar</button>
           </div>
 
-          <div class="scroll-dual">
-            ${inventoryModule.renderMovementTable?.(movementFilters) || '<div class="empty-state">Sem movimentações.</div>'}
+          <div class="table-wrap scroll-dual">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Código</th>
+                  <th>Categoria</th>
+                  <th>Fornecedor</th>
+                  <th>Venda</th>
+                  <th>Qtd</th>
+                  <th>Status</th>
+                  <th>Estoque</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${
+                  rows.map((item) => {
+                    const stockBadge = getStockBadge(item);
+                    return `
+                      <tr>
+                        <td>${escapeHtml(item.name || '-')}</td>
+                        <td>${escapeHtml(item.barcode || '-')}</td>
+                        <td>${escapeHtml(item.category || '-')}</td>
+                        <td>${escapeHtml(item.supplier || '-')}</td>
+                        <td>${currency(item.salePrice || 0)}</td>
+                        <td>${escapeHtml(String(item.quantity ?? 0))}</td>
+                        <td>${escapeHtml(item.status || 'ativo')}</td>
+                        <td><span class="badge ${stockBadge.className}">${stockBadge.label}</span></td>
+                        <td>
+                          <div class="actions-inline-compact">
+                            <button class="icon-action-btn" type="button" data-edit-product="${item.id}" aria-label="Editar">✏️</button>
+                            <button class="icon-action-btn" type="button" data-stock-product="${item.id}" aria-label="Movimentar estoque">📦</button>
+                            <button class="icon-action-btn" type="button" data-product-movements="${item.id}" aria-label="Ver movimentações">🕘</button>
+                            <button class="icon-action-btn" type="button" data-delete-product="${item.id}" aria-label="Excluir">🗑️</button>
+                          </div>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('') || `
+                    <tr>
+                      <td colspan="9">Nenhum produto encontrado.</td>
+                    </tr>
+                  `
+                }
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -782,8 +631,6 @@ export function createProductsModule(ctx) {
   }
 
   return {
-    render,
-    stopBarcodeScanner,
-    openProductFormModal
+    render
   };
 }
