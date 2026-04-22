@@ -3200,3 +3200,42 @@ body:not(.theme-light) .search-result-item strong {
 .client-picker-item span {
   font-size: 13px;
 }
+
+/* TESTE DE DESEMPENHO - VENDAS */
+#tab-sales,
+#tab-sales * {
+  transition: none !important;
+  animation: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+#tab-sales .sales-main-panel,
+#tab-sales .sales-summary-panel,
+#tab-sales .sales-client-box,
+#tab-sales .sales-results-panel,
+#tab-sales .sales-payment-box,
+#tab-sales .sales-total-box,
+#tab-sales .sales-history-card,
+#tab-sales .sales-product-result,
+#tab-sales .sales-cart-item,
+#tab-sales .sales-history-sale-card,
+#tab-sales .sales-selected-client-box,
+#tab-sales .sale-items-box,
+#tab-sales .sale-edit-products-box,
+#tab-sales .sale-modal-card {
+  background: var(--panel) !important;
+  box-shadow: none !important;
+}
+
+#tab-sales .sales-summary-panel {
+  position: static !important;
+}
+
+#tab-sales .panel-scroll,
+#tab-sales .card-scroll-y,
+#tab-sales .sales-cart-list,
+#tab-sales #sale-search-results {
+  max-height: none !important;
+}
