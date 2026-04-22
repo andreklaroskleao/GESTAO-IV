@@ -134,12 +134,14 @@ export function createSalesModule(ctx) {
     const totalEl = tabEls.sales.querySelector('#sale-total');
     const changeEl = tabEls.sales.querySelector('#sale-change');
     const itemsCountEl = tabEls.sales.querySelector('#sale-items-count');
+    const amountPaidEl = tabEls.sales.querySelector('#sale-paid-view');
 
     if (subtotalEl) subtotalEl.textContent = currency(subtotal);
     if (discountEl) discountEl.textContent = currency(discount);
     if (totalEl) totalEl.textContent = currency(total);
     if (changeEl) changeEl.textContent = currency(change);
     if (itemsCountEl) itemsCountEl.textContent = String((state.cart || []).length);
+    if (amountPaidEl) amountPaidEl.textContent = currency(amountPaid);
   }
 
   function normalizeSaleForPrint(sale) {
@@ -252,7 +254,7 @@ export function createSalesModule(ctx) {
 
     if (!term) {
       resultsEl.innerHTML = `
-        <div class="empty-state">
+        <div class="empty-state sales-empty-box">
           <strong>Pesquise um produto</strong>
           <span>Digite nome ou código de barras para listar resultados.</span>
         </div>
@@ -270,15 +272,21 @@ export function createSalesModule(ctx) {
       .slice(0, 8);
 
     resultsEl.innerHTML = results.map((product) => `
-      <div class="list-item">
-        <strong>${escapeHtml(product.name)}</strong>
-        <span>${escapeHtml(product.barcode || 'Sem código')} · Estoque: ${product.quantity} · ${currency(product.salePrice || 0)}</span>
-        <div class="form-actions">
+      <div class="sales-product-result">
+        <div class="sales-product-result-main">
+          <strong>${escapeHtml(product.name)}</strong>
+          <span>${escapeHtml(product.barcode || 'Sem código')}</span>
+        </div>
+        <div class="sales-product-result-meta">
+          <span>Estoque: ${product.quantity}</span>
+          <strong>${currency(product.salePrice || 0)}</strong>
+        </div>
+        <div class="sales-product-result-actions">
           <button class="btn btn-secondary" type="button" data-add-product="${product.id}">Adicionar</button>
         </div>
       </div>
     `).join('') || `
-      <div class="empty-state">
+      <div class="empty-state sales-empty-box">
         <strong>Nenhum produto encontrado</strong>
         <span>Refine sua pesquisa.</span>
       </div>
@@ -295,7 +303,7 @@ export function createSalesModule(ctx) {
 
     if (!(state.cart || []).length) {
       cartEl.innerHTML = `
-        <div class="empty-state">
+        <div class="empty-state sales-empty-box">
           <strong>Carrinho vazio</strong>
           <span>Pesquise um produto para adicionar.</span>
         </div>
@@ -304,17 +312,26 @@ export function createSalesModule(ctx) {
     }
 
     cartEl.innerHTML = state.cart.map((item) => `
-      <div class="cart-item">
-        <div class="cart-line">
-          <strong>${escapeHtml(item.name)}</strong>
-          <span>${currency(Number(item.salePrice || 0))}</span>
+      <div class="sales-cart-item">
+        <div class="sales-cart-top">
+          <div class="sales-cart-title">
+            <strong>${escapeHtml(item.name)}</strong>
+            <span>${escapeHtml(item.barcode || 'Sem código')}</span>
+          </div>
+          <div class="sales-cart-price">
+            ${currency(Number(item.salePrice || 0))}
+          </div>
         </div>
 
-        <div class="cart-line">
-          <div class="cart-actions">
+        <div class="sales-cart-bottom">
+          <div class="sales-cart-qty">
             <button class="icon-action-btn" type="button" data-cart-decrease="${item.id}" aria-label="Diminuir">−</button>
             <strong>${Number(item.quantity || 0)}</strong>
             <button class="icon-action-btn" type="button" data-cart-increase="${item.id}" aria-label="Aumentar">+</button>
+          </div>
+
+          <div class="sales-cart-total">
+            ${currency(Number(item.salePrice || 0) * Number(item.quantity || 0))}
           </div>
 
           <button class="icon-action-btn" type="button" data-cart-remove="${item.id}" aria-label="Remover">🗑️</button>
@@ -517,23 +534,26 @@ export function createSalesModule(ctx) {
       if (itemsHost) {
         itemsHost.innerHTML = editingItems.length
           ? editingItems.map((item) => `
-              <div class="cart-item">
-                <div class="cart-line">
-                  <strong>${escapeHtml(item.name || '')}</strong>
-                  <span>${currency(Number(item.unitPrice || 0))}</span>
+              <div class="sales-cart-item">
+                <div class="sales-cart-top">
+                  <div class="sales-cart-title">
+                    <strong>${escapeHtml(item.name || '')}</strong>
+                    <span>${currency(Number(item.unitPrice || 0))}</span>
+                  </div>
                 </div>
-                <div class="cart-line">
-                  <div class="cart-actions">
+                <div class="sales-cart-bottom">
+                  <div class="sales-cart-qty">
                     <button class="icon-action-btn" type="button" data-edit-sale-item-decrease="${item.productId}">−</button>
                     <strong>${Number(item.quantity || 0)}</strong>
                     <button class="icon-action-btn" type="button" data-edit-sale-item-increase="${item.productId}">+</button>
                   </div>
+                  <div class="sales-cart-total">${currency(Number(item.unitPrice || 0) * Number(item.quantity || 0))}</div>
                   <button class="icon-action-btn" type="button" data-edit-sale-item-remove="${item.productId}">🗑️</button>
                 </div>
               </div>
             `).join('')
           : `
-              <div class="empty-state">
+              <div class="empty-state sales-empty-box">
                 <strong>Nenhum item</strong>
                 <span>Adicione produtos à venda.</span>
               </div>
@@ -554,7 +574,7 @@ export function createSalesModule(ctx) {
 
         if (!term) {
           resultsHost.innerHTML = `
-            <div class="empty-state">
+            <div class="empty-state sales-empty-box">
               <strong>Pesquise um produto</strong>
               <span>Digite nome ou código de barras para adicionar item.</span>
             </div>
@@ -571,17 +591,23 @@ export function createSalesModule(ctx) {
 
           resultsHost.innerHTML =
             results.map((product) => `
-              <div class="list-item">
-                <strong>${escapeHtml(product.name)}</strong>
-                <span>${escapeHtml(product.barcode || 'Sem código')} · Estoque: ${product.quantity} · ${currency(product.salePrice || 0)}</span>
-                <div class="form-actions">
+              <div class="sales-product-result">
+                <div class="sales-product-result-main">
+                  <strong>${escapeHtml(product.name)}</strong>
+                  <span>${escapeHtml(product.barcode || 'Sem código')}</span>
+                </div>
+                <div class="sales-product-result-meta">
+                  <span>Estoque: ${product.quantity}</span>
+                  <strong>${currency(product.salePrice || 0)}</strong>
+                </div>
+                <div class="sales-product-result-actions">
                   <button class="btn btn-secondary" type="button" data-edit-sale-add-product="${product.id}">
                     Adicionar
                   </button>
                 </div>
               </div>
             `).join('') || `
-              <div class="empty-state">
+              <div class="empty-state sales-empty-box">
                 <strong>Nenhum produto encontrado</strong>
                 <span>Refine sua pesquisa.</span>
               </div>
@@ -1154,105 +1180,116 @@ export function createSalesModule(ctx) {
   }
 
   function render() {
-    const { subtotal, discount, total, change } = calculateCartTotal();
+    const { subtotal, discount, total, change, amountPaid } = calculateCartTotal();
 
     tabEls.sales.innerHTML = `
-      <div class="section-stack">
-        <div class="sales-layout">
-          <div class="panel">
-            <div class="section-header">
-              <h2>Venda</h2>
-              <span class="muted">Pesquisa de produto e código de barras</span>
-            </div>
-
-            <div class="sales-search-toolbar" style="margin-bottom:14px;">
-              <div class="sales-search-main">
-                <input
-                  id="sale-product-search"
-                  type="text"
-                  placeholder="Digite nome do produto ou código de barras"
-                  autocomplete="off"
-                  value="${escapeHtml(searchTerm)}"
-                />
-              </div>
-              <div class="sales-search-actions">
-                <button class="btn btn-secondary" type="button" id="sale-select-client-btn">Selecionar cliente</button>
-                <button class="btn btn-secondary" type="button" id="sale-clear-client-btn">Limpar cliente</button>
+      <div class="section-stack sales-page">
+        <div class="sales-top-layout">
+          <div class="sales-main-panel">
+            <div class="sales-panel-header">
+              <div>
+                <h2>Nova venda</h2>
+                <span>Pesquise por nome ou código de barras</span>
               </div>
             </div>
 
-            <div class="form-grid" style="margin-bottom:14px;">
-              <label style="grid-column:1 / -1;">
-                Cliente
-                <input id="sale-customer-name" type="text" value="${escapeHtml(saleFormState.customerName)}" placeholder="Deixe em branco para não identificado" />
-              </label>
-
-              <label style="grid-column:1 / -1; display:flex; align-items:center; gap:8px;">
-                <input id="sale-include-cpf" type="checkbox" style="width:auto;" ${saleFormState.includeCpf ? 'checked' : ''} />
-                <span>Inserir CPF no cupom</span>
-              </label>
-
-              <label id="sale-cpf-wrap" style="grid-column:1 / -1; display:none;">
-                CPF
-                <input id="sale-customer-cpf" type="text" value="${escapeHtml(saleFormState.customerCpf)}" placeholder="Digite o CPF do cliente" />
-              </label>
+            <div class="sales-search-box">
+              <input
+                id="sale-product-search"
+                type="text"
+                placeholder="Digite nome do produto ou código de barras"
+                autocomplete="off"
+                value="${escapeHtml(searchTerm)}"
+              />
             </div>
 
-            <div id="sale-search-results" class="panel-scroll">
-              <div class="empty-state">
-                <strong>Pesquise um produto</strong>
-                <span>Digite nome ou código de barras para listar resultados.</span>
+            <div class="sales-client-box">
+              <div class="sales-client-box-header">
+                <strong>Cliente</strong>
+                <div class="form-actions">
+                  <button class="btn btn-secondary" type="button" id="sale-select-client-btn">Selecionar cliente</button>
+                  <button class="btn btn-secondary" type="button" id="sale-clear-client-btn">Limpar cliente</button>
+                </div>
               </div>
+
+              <div class="form-grid">
+                <label style="grid-column:1 / -1;">
+                  Nome do cliente
+                  <input id="sale-customer-name" type="text" value="${escapeHtml(saleFormState.customerName)}" placeholder="Deixe em branco para não identificado" />
+                </label>
+
+                <label style="grid-column:1 / -1;" class="sales-inline-check">
+                  <input id="sale-include-cpf" type="checkbox" style="width:auto;" ${saleFormState.includeCpf ? 'checked' : ''} />
+                  <span>Inserir CPF no cupom</span>
+                </label>
+
+                <label id="sale-cpf-wrap" style="grid-column:1 / -1; display:none;">
+                  CPF
+                  <input id="sale-customer-cpf" type="text" value="${escapeHtml(saleFormState.customerCpf)}" placeholder="Digite o CPF do cliente" />
+                </label>
+              </div>
+            </div>
+
+            <div class="sales-results-panel">
+              <div class="sales-section-title">Resultados da pesquisa</div>
+              <div id="sale-search-results" class="panel-scroll"></div>
             </div>
           </div>
 
-          <div class="panel sticky-summary">
-            <div class="section-header">
-              <h2>Carrinho</h2>
-              <span class="muted"><span id="sale-items-count">${state.cart.length}</span> item(ns)</span>
+          <div class="sales-summary-panel">
+            <div class="sales-panel-header">
+              <div>
+                <h2>Carrinho</h2>
+                <span><span id="sale-items-count">${state.cart.length}</span> item(ns)</span>
+              </div>
             </div>
 
-            <div id="sale-cart-items" class="card-scroll-y"></div>
+            <div id="sale-cart-items" class="card-scroll-y sales-cart-list"></div>
 
-            <div class="form-grid" style="margin-top:14px;">
-              <label>
-                Forma de pagamento
-                <select id="sale-payment-method">
-                  ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}" ${saleFormState.paymentMethod === method ? 'selected' : ''}>${escapeHtml(method)}</option>`).join('')}
-                </select>
-              </label>
+            <div class="sales-payment-box">
+              <div class="sales-section-title">Pagamento</div>
 
-              <label>
-                Desconto
-                <input name="discount" type="number" step="0.01" min="0" value="${escapeHtml(String(saleFormState.discount))}" />
-              </label>
+              <div class="form-grid">
+                <label>
+                  Forma de pagamento
+                  <select id="sale-payment-method">
+                    ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}" ${saleFormState.paymentMethod === method ? 'selected' : ''}>${escapeHtml(method)}</option>`).join('')}
+                  </select>
+                </label>
 
-              <label>
-                Valor pago
-                <input name="amountPaid" type="number" step="0.01" min="0" value="${escapeHtml(String(saleFormState.amountPaid))}" />
-              </label>
+                <label>
+                  Desconto
+                  <input name="discount" type="number" step="0.01" min="0" value="${escapeHtml(String(saleFormState.discount))}" />
+                </label>
 
-              <label style="grid-column:1 / -1;">
-                Observações
-                <textarea name="notes">${escapeHtml(saleFormState.notes)}</textarea>
-              </label>
+                <label>
+                  Valor pago
+                  <input name="amountPaid" type="number" step="0.01" min="0" value="${escapeHtml(String(saleFormState.amountPaid))}" />
+                </label>
+
+                <label style="grid-column:1 / -1;">
+                  Observações
+                  <textarea name="notes">${escapeHtml(saleFormState.notes)}</textarea>
+                </label>
+              </div>
             </div>
 
-            <div class="summary-box" style="margin-top:14px;">
-              <div class="summary-line"><span>Subtotal</span><strong id="sale-subtotal">${currency(subtotal)}</strong></div>
-              <div class="summary-line"><span>Desconto</span><strong id="sale-discount-view">${currency(discount)}</strong></div>
-              <div class="summary-line total"><span>Total</span><strong id="sale-total">${currency(total)}</strong></div>
-              <div class="summary-line"><span>Troco</span><strong id="sale-change">${currency(change)}</strong></div>
+            <div class="sales-total-box">
+              <div class="sales-total-line"><span>Subtotal</span><strong id="sale-subtotal">${currency(subtotal)}</strong></div>
+              <div class="sales-total-line"><span>Desconto</span><strong id="sale-discount-view">${currency(discount)}</strong></div>
+              <div class="sales-total-line"><span>Valor pago</span><strong id="sale-paid-view">${currency(amountPaid)}</strong></div>
+              <div class="sales-total-line sales-total-highlight"><span>Total</span><strong id="sale-total">${currency(total)}</strong></div>
+              <div class="sales-total-line"><span>Troco</span><strong id="sale-change">${currency(change)}</strong></div>
             </div>
 
-            <div class="form-actions" style="margin-top:14px;">
+            <div class="form-actions sales-final-actions">
               <button class="btn btn-primary" type="button" id="finish-sale-btn">Finalizar venda</button>
               <button class="btn btn-secondary" type="button" id="clear-cart-btn">Limpar carrinho</button>
             </div>
           </div>
         </div>
 
-        <div class="table-card">
+        <div class="table-card sales-history-card">
           <div class="section-header">
             <h2>Histórico de vendas</h2>
           </div>
