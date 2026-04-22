@@ -1455,3 +1455,106 @@ async function restoreSaleItemsToStock(sale) {
     const paymentMethodInput = tabEls.sales.querySelector('#sale-payment-method');
     const discountInput = tabEls.sales.querySelector('input[name="discount"]');
     const amountPaidInput = tabEls.sales.querySelector('input[name="amountPaid"]');
+    const notesInput = tabEls.sales.querySelector('textarea[name="notes"]');
+
+    customerNameInput?.addEventListener('input', (event) => {
+      saleFormState.customerName = event.currentTarget.value || '';
+    });
+
+    includeCpfInput?.addEventListener('change', () => {
+      saleFormState.includeCpf = Boolean(includeCpfInput.checked);
+    });
+
+    customerCpfInput?.addEventListener('input', (event) => {
+      saleFormState.customerCpf = event.currentTarget.value || '';
+    });
+
+    paymentMethodInput?.addEventListener('change', (event) => {
+      saleFormState.paymentMethod = event.currentTarget.value || (paymentMethods?.[0] || 'Dinheiro');
+      updateSaleSummary();
+    });
+
+    discountInput?.addEventListener('input', (event) => {
+      saleFormState.discount = event.currentTarget.value || '0';
+      updateSaleSummary();
+    });
+
+    amountPaidInput?.addEventListener('input', (event) => {
+      saleFormState.amountPaid = event.currentTarget.value || '0';
+      updateSaleSummary();
+    });
+
+    notesInput?.addEventListener('input', (event) => {
+      saleFormState.notes = event.currentTarget.value || '';
+    });
+
+    bindAsyncButton(tabEls.sales.querySelector('#sale-select-client-btn'), async () => {
+      openClientPicker();
+    }, { busyLabel: 'Abrindo...' });
+
+    bindAsyncButton(tabEls.sales.querySelector('#sale-clear-client-btn'), async () => {
+      state.selectedSaleClient = null;
+      saleFormState.customerName = '';
+      saleFormState.includeCpf = false;
+      saleFormState.customerCpf = '';
+
+      const clientInput = tabEls.sales.querySelector('#sale-customer-name');
+      const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
+      const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
+
+      if (clientInput) clientInput.value = '';
+      if (cpfCheck) cpfCheck.checked = false;
+      if (cpfInput) cpfInput.value = '';
+
+      bindCpfToggle();
+      showToast('Cliente limpo.', 'info');
+    }, { busyLabel: 'Limpando...' });
+
+    bindAsyncButton(tabEls.sales.querySelector('#finish-sale-btn'), async () => {
+      await finishSale();
+    }, { busyLabel: 'Finalizando...' });
+
+    bindAsyncButton(tabEls.sales.querySelector('#clear-cart-btn'), async () => {
+      clearCartWithFeedback();
+    }, { busyLabel: 'Limpando...' });
+
+    bindAsyncButton(
+      tabEls.sales.querySelector('#toggle-sales-focus-btn'),
+      async () => {
+        await toggleSalesFocusMode();
+      },
+      {
+        busyLabel: isSalesFocusMode() ? 'Saindo...' : 'Abrindo...'
+      }
+    );
+
+    tabEls.sales.querySelector('#sales-filter-apply')?.addEventListener('click', () => {
+      saleFilters.customer = tabEls.sales.querySelector('#sales-filter-customer')?.value || '';
+      saleFilters.paymentMethod = tabEls.sales.querySelector('#sales-filter-payment')?.value || '';
+      saleFilters.dateFrom = tabEls.sales.querySelector('#sales-filter-date-from')?.value || '';
+      saleFilters.dateTo = tabEls.sales.querySelector('#sales-filter-date-to')?.value || '';
+      renderHistory();
+    });
+
+    bindAsyncButton(tabEls.sales.querySelector('#sales-filter-clear'), async () => {
+      saleFilters = { customer: '', paymentMethod: '', dateFrom: '', dateTo: '' };
+      render();
+    }, { busyLabel: 'Limpando...' });
+
+    renderSearchResults();
+    renderCart();
+    renderHistory();
+    updateSaleSummary();
+    bindCpfToggle();
+    bindKeyboardShortcuts();
+    bindSalesFocusFullscreenSync();
+
+    if (loadSalesFocusMode() && !isSalesFocusMode()) {
+      setSalesFocusMode(true);
+    }
+  }
+
+  return {
+    render
+  };
+}
