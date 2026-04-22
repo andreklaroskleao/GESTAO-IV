@@ -2939,3 +2939,32 @@ body.theme-light .section-summary-item {
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================================
+   CORRECAO - DUPLICIDADE DO BOTAO DE MENU
+========================================= */
+
+/* Desktop: mostra o botao de recolher sidebar e esconde o botao mobile */
+@media (min-width: 921px) {
+  .topbar .mobile-only-inline {
+    display: none !important;
+  }
+
+  .sidebar-top .desktop-only-inline {
+    display: inline-flex !important;
+  }
+}
+
+/* Mobile / tablet: mostra apenas o botao mobile da topbar */
+@media (max-width: 920px) {
+  .topbar .mobile-only-inline {
+    display: inline-flex !important;
+  }
+
+  .sidebar-top .desktop-only-inline,
+  .sidebar-top .icon-btn.desktop-only-inline,
+  .sidebar-top .icon-btn[data-sidebar-collapse],
+  .sidebar-top .icon-btn[data-collapse-sidebar] {
+    display: none !important;
+  }
+}
