@@ -248,50 +248,60 @@ export function createSalesModule(ctx) {
     return true;
   }
 
- function renderSearchResults(forceTerm = null) {
-  const resultsEl = tabEls.sales.querySelector('#sale-search-results');
-  if (!resultsEl) return;
+  function renderSearchResults(forceTerm = null) {
+    const resultsEl = tabEls.sales.querySelector('#sale-search-results');
+    if (!resultsEl) return;
 
-  const term = String(forceTerm ?? searchTerm ?? '').trim().toLowerCase();
+    const term = String(forceTerm ?? searchTerm ?? '').trim().toLowerCase();
 
-  if (!term) {
-    resultsEl.innerHTML = `
+    if (!term) {
+      resultsEl.innerHTML = `
+        <div class="empty-state">
+          <strong>Pesquise um produto</strong>
+          <span>Digite nome ou código de barras e clique em Buscar.</span>
+        </div>
+      `;
+      return;
+    }
+
+    if (term.length < 2) {
+      resultsEl.innerHTML = `
+        <div class="empty-state">
+          <strong>Continue digitando</strong>
+          <span>Digite pelo menos 2 letras para pesquisar.</span>
+        </div>
+      `;
+      return;
+    }
+
+    const results = [];
+    for (let i = 0; i < searchCache.length; i += 1) {
+      const item = searchCache[i];
+      if (item.text.includes(term)) {
+        results.push(item.ref);
+        if (results.length >= 8) break;
+      }
+    }
+
+    resultsEl.innerHTML = results.map((product) => `
+      <div class="list-item">
+        <strong>${escapeHtml(product.name)}</strong>
+        <span>${escapeHtml(product.barcode || 'Sem código')} · Estoque: ${product.quantity} · ${currency(product.salePrice || 0)}</span>
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="button" data-add-product="${product.id}">Adicionar</button>
+        </div>
+      </div>
+    `).join('') || `
       <div class="empty-state">
-        <strong>Pesquise um produto</strong>
-        <span>Digite nome ou código de barras e clique em Buscar.</span>
+        <strong>Nenhum produto encontrado</strong>
+        <span>Refine sua pesquisa.</span>
       </div>
     `;
-    return;
+
+    resultsEl.querySelectorAll('[data-add-product]').forEach((btn) => {
+      btn.addEventListener('click', () => addProductToCart(btn.dataset.addProduct));
+    });
   }
-
-  const results = getActiveProducts()
-    .filter((product) =>
-      [product.name, product.barcode, product.brand, product.supplier]
-        .join(' ')
-        .toLowerCase()
-        .includes(term)
-    )
-    .slice(0, 8);
-
-  resultsEl.innerHTML = results.map((product) => `
-    <div class="list-item">
-      <strong>${escapeHtml(product.name)}</strong>
-      <span>${escapeHtml(product.barcode || 'Sem código')} · Estoque: ${product.quantity} · ${currency(product.salePrice || 0)}</span>
-      <div class="form-actions">
-        <button class="btn btn-secondary" type="button" data-add-product="${product.id}">Adicionar</button>
-      </div>
-    </div>
-  `).join('') || `
-    <div class="empty-state">
-      <strong>Nenhum produto encontrado</strong>
-      <span>Refine sua pesquisa.</span>
-    </div>
-  `;
-
-  resultsEl.querySelectorAll('[data-add-product]').forEach((btn) => {
-    btn.addEventListener('click', () => addProductToCart(btn.dataset.addProduct));
-  });
-}
 
   function renderCart() {
     const cartEl = tabEls.sales.querySelector('#sale-cart-items');
@@ -1025,27 +1035,27 @@ export function createSalesModule(ctx) {
               <span class="muted">Pesquisa de produto e código de barras</span>
             </div>
 
-          <div class="sales-search-toolbar" style="margin-bottom:14px;">
-  <div class="sales-search-main">
-    <input
-      id="sale-product-search"
-      type="search"
-      placeholder="Digite nome do produto ou código de barras"
-      autocomplete="new-password"
-      autocorrect="off"
-      autocapitalize="off"
-      spellcheck="false"
-      inputmode="search"
-      value="${escapeHtml(searchTerm)}"
-    />
-  </div>
-  <div class="sales-search-actions">
-    <button class="btn btn-secondary" type="button" id="sale-search-btn">Buscar</button>
-    <button class="btn btn-secondary" type="button" id="sale-search-clear-btn">Limpar busca</button>
-    <button class="btn btn-secondary" type="button" id="sale-select-client-btn">Selecionar cliente</button>
-    <button class="btn btn-secondary" type="button" id="sale-clear-client-btn">Limpar cliente</button>
-  </div>
-</div>
+            <div class="sales-search-toolbar" style="margin-bottom:14px;">
+              <div class="sales-search-main">
+                <input
+                  id="sale-product-search"
+                  type="search"
+                  placeholder="Digite nome do produto ou código de barras"
+                  autocomplete="new-password"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  inputmode="search"
+                  value="${escapeHtml(searchTerm)}"
+                />
+              </div>
+              <div class="sales-search-actions">
+                <button class="btn btn-secondary" type="button" id="sale-search-btn">Buscar</button>
+                <button class="btn btn-secondary" type="button" id="sale-search-clear-btn">Limpar busca</button>
+                <button class="btn btn-secondary" type="button" id="sale-select-client-btn">Selecionar cliente</button>
+                <button class="btn btn-secondary" type="button" id="sale-clear-client-btn">Limpar cliente</button>
+              </div>
+            </div>
 
             <div class="form-grid" style="margin-bottom:14px;">
               <label style="grid-column:1 / -1;">
@@ -1067,7 +1077,7 @@ export function createSalesModule(ctx) {
             <div id="sale-search-results" class="panel-scroll">
               <div class="empty-state">
                 <strong>Pesquise um produto</strong>
-                <span>Digite nome ou código de barras para listar resultados.</span>
+                <span>Digite nome ou código de barras e clique em Buscar.</span>
               </div>
             </div>
           </div>
@@ -1155,13 +1165,39 @@ export function createSalesModule(ctx) {
     `;
 
     const searchInput = tabEls.sales.querySelector('#sale-product-search');
-    
+    const saleSearchBtn = tabEls.sales.querySelector('#sale-search-btn');
+    const saleSearchClearBtn = tabEls.sales.querySelector('#sale-search-clear-btn');
 
     searchInput?.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        tryAddProductByBarcode(event.currentTarget.value || '', true);
+      if (event.key !== 'Enter') return;
+
+      event.preventDefault();
+
+      const value = String(event.currentTarget.value || '').trim();
+      if (!value) return;
+
+      searchTerm = value;
+
+      if (tryAddProductByBarcode(value, false)) {
+        return;
       }
+
+      renderSearchResults(value);
+    });
+
+    saleSearchBtn?.addEventListener('click', () => {
+      const value = String(searchInput?.value || '').trim();
+      searchTerm = value;
+      renderSearchResults(value);
+    });
+
+    saleSearchClearBtn?.addEventListener('click', () => {
+      searchTerm = '';
+      if (searchInput) {
+        searchInput.value = '';
+      }
+      renderSearchResults('');
+      focusSearchInput();
     });
 
     const customerNameInput = tabEls.sales.querySelector('#sale-customer-name');
