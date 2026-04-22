@@ -88,20 +88,25 @@ export function createSalesModule(ctx) {
   }
 
   function getSelectedClientLabel() {
-    if (!state.selectedSaleClient) {
-      return {
-        name: saleFormState.customerName || 'Consumidor final',
-        cpf: saleFormState.includeCpf
-          ? (saleFormState.customerCpf || 'Sem CPF')
-          : 'CPF não informado'
-      };
-    }
+  if (!state.selectedSaleClient) {
+    const typedName = String(saleFormState.customerName || '').trim();
+    const isAnonymousSale =
+      !typedName ||
+      typedName.toLowerCase() === 'consumidor final';
 
     return {
-      name: state.selectedSaleClient.name || 'Cliente selecionado',
-      cpf: getSelectedClientCpf() || 'Sem CPF'
+      name: isAnonymousSale ? 'Cliente não identificado' : typedName,
+      cpf: saleFormState.includeCpf
+        ? (saleFormState.customerCpf || 'Sem CPF informado')
+        : 'Sem CPF informado'
     };
   }
+
+  return {
+    name: state.selectedSaleClient.name || 'Cliente selecionado',
+    cpf: getSelectedClientCpf() || 'Sem CPF informado'
+  };
+}
 
   function syncSaleFormStateFromDom() {
     const customerNameInput = tabEls.sales?.querySelector('#sale-customer-name');
