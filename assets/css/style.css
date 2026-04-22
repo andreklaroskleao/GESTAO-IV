@@ -2872,3 +2872,76 @@ body.theme-light #tab-sales option {
     justify-content: flex-start;
   }
 }
+
+/* =========================
+   MODAIS DE VENDAS
+========================= */
+
+.sale-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.sale-modal-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sale-modal-card strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.sale-modal-card span {
+  display: block;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.sale-modal-section {
+  margin-top: 16px;
+}
+
+.sale-modal-section-title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sale-items-box {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sale-edit-products-box {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sale-delete-warning {
+  border: 1px solid rgba(231, 76, 60, 0.18);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(231, 76, 60, 0.06);
+}
+
+.sale-delete-warning strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+@media (max-width: 900px) {
+  .sale-modal-grid {
+    grid-template-columns: 1fr;
+  }
+}
