@@ -2968,3 +2968,313 @@ body.theme-light .section-summary-item {
     display: none !important;
   }
 }
+
+/* =========================================
+   PDV - BUSCA E CARRINHO
+========================================= */
+
+.is-primary-result {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.sales-cart-item {
+  transition: transform 0.16s ease, border-color 0.16s ease;
+}
+
+.sales-cart-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.sales-cart-total {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.sales-cart-qty .icon-action-btn {
+  min-width: 38px;
+  min-height: 38px;
+  font-size: 18px;
+}
+
+.sales-cart-remove-btn {
+  border-color: rgba(231, 76, 60, 0.24);
+}
+
+/* =========================================
+   PDV - BUSCA E CARRINHO
+========================================= */
+
+.is-primary-result {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.sales-cart-item {
+  transition: transform 0.16s ease, border-color 0.16s ease;
+}
+
+.sales-cart-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.sales-cart-total {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.sales-cart-qty .icon-action-btn {
+  min-width: 38px;
+  min-height: 38px;
+  font-size: 18px;
+}
+
+.sales-cart-remove-btn {
+  border-color: rgba(231, 76, 60, 0.24);
+}
+
+
+/* =========================================
+   CLIENTE SELECIONADO
+========================================= */
+
+.sales-selected-client-box {
+  margin-bottom: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(37, 99, 235, 0.08);
+  display: grid;
+  gap: 4px;
+}
+
+.sales-selected-client-box strong {
+  font-size: 15px;
+}
+
+.sales-selected-client-box span {
+  font-size: 13px;
+  opacity: 0.86;
+}
+
+/* =========================================
+   FINALIZACAO PDV
+========================================= */
+
+.sales-total-box {
+  border: 1px solid rgba(37, 99, 235, 0.18);
+}
+
+.sales-total-highlight {
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: 14px;
+  padding: 14px 12px;
+  border-top: 0;
+}
+
+.sales-total-highlight strong {
+  font-size: 28px;
+}
+
+.sales-change-strong {
+  color: #7ee7a8;
+  font-size: 20px;
+}
+
+#finish-sale-btn {
+  min-height: 52px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* =========================================
+   HISTORICO MOBILE PDV
+========================================= */
+
+.sales-history-mobile-list {
+  display: none;
+}
+
+.sales-history-sale-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sale-card-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.sale-card-meta {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.sale-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sale-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(37, 99, 235, 0.10);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+}
+
+@media (max-width: 768px) {
+  .sales-history-table-wrap {
+    display: none;
+  }
+
+  .sales-history-mobile-list {
+    display: grid;
+    gap: 10px;
+  }
+}
+
+/* =========================================
+   PDV - BUSCA, CARRINHO, CLIENTE E FINALIZACAO
+========================================= */
+
+.is-primary-result {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.sales-cart-item {
+  transition: transform 0.16s ease, border-color 0.16s ease;
+}
+
+.sales-cart-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.sales-cart-total {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.sales-cart-qty .icon-action-btn {
+  min-width: 38px;
+  min-height: 38px;
+  font-size: 18px;
+}
+
+.sales-cart-remove-btn {
+  border-color: rgba(231, 76, 60, 0.24);
+}
+
+.sales-selected-client-box {
+  margin-bottom: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(37, 99, 235, 0.08);
+  display: grid;
+  gap: 4px;
+}
+
+.sales-selected-client-box strong {
+  font-size: 15px;
+}
+
+.sales-selected-client-box span {
+  font-size: 13px;
+  opacity: 0.86;
+}
+
+.sales-total-box {
+  border: 1px solid rgba(37, 99, 235, 0.18);
+}
+
+.sales-total-highlight {
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: 14px;
+  padding: 14px 12px;
+  border-top: 0;
+}
+
+.sales-total-highlight strong {
+  font-size: 28px;
+}
+
+.sales-change-strong {
+  color: #7ee7a8;
+  font-size: 20px;
+}
+
+#finish-sale-btn {
+  min-height: 52px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* =========================================
+   HISTORICO MOBILE PDV
+========================================= */
+
+.sales-history-mobile-list {
+  display: none;
+}
+
+.sales-history-sale-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sale-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.sale-card-meta {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.sale-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sale-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(37, 99, 235, 0.10);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+}
+
+@media (max-width: 768px) {
+  .sales-history-table-wrap {
+    display: none;
+  }
+
+  .sales-history-mobile-list {
+    display: grid;
+    gap: 10px;
+  }
+}
+
