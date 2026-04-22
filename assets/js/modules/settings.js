@@ -77,6 +77,7 @@ export function createSettingsModule(ctx) {
     fieldsToTrack.forEach(({ field, label }) => {
       const oldValue = previous[field];
       const newValue = payload[field];
+
       if (String(oldValue ?? '') !== String(newValue ?? '')) {
         changes.push({
           field,
@@ -310,6 +311,7 @@ export function createSettingsModule(ctx) {
     bindPrintEvents();
     bindAuditPrint();
     cashierModule.bindCashEvents(render);
+    auditModule.bindAuditTableEvents(tabEls.settings);
   }
 
   function renderFinancialSummary() {
