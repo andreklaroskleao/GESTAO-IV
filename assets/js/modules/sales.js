@@ -1165,10 +1165,16 @@ export function createSalesModule(ctx) {
     });
 
     searchInput?.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
+      if (event.key !== 'Enter') return;
         event.preventDefault();
-        tryAddProductByBarcode(event.currentTarget.value || '', true);
-      }
+
+      const value = String(event.currentTarget.value || '').trim();
+        if (!value) return;
+
+        if (tryAddProductByBarcode(value, false)){
+          return;
+        }
+       renderSearchResults();
     });
 
     const customerNameInput = tabEls.sales.querySelector('#sale-customer-name');
