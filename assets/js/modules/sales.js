@@ -1161,20 +1161,14 @@ export function createSalesModule(ctx) {
     const searchInput = tabEls.sales.querySelector('#sale-product-search');
     searchInput?.addEventListener('input', (event) => {
       searchTerm = event.currentTarget.value || '';
-      
+      renderSearchResults();
     });
 
     searchInput?.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter') return;
+      if (event.key === 'Enter') {
         event.preventDefault();
-
-      const value = String(event.currentTarget.value || '').trim();
-        if (!value) return;
-
-        if (tryAddProductByBarcode(value, false)){
-          return;
-        }
-       renderSearchResults();
+        tryAddProductByBarcode(event.currentTarget.value || '', true);
+      }
     });
 
     const customerNameInput = tabEls.sales.querySelector('#sale-customer-name');
