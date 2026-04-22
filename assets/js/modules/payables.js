@@ -69,11 +69,20 @@ export function createPayablesModule(ctx) {
   function getSummary() {
     const rows = getRows();
 
+    const totalOpen = rows.reduce((sum, item) => sum + Number(item.openAmount || 0), 0);
+    const totalPaid = rows.reduce((sum, item) => sum + Number(item.paidAmount || 0), 0);
+    const overdueCount = rows.filter((item) => getPayableStatus(item) === 'vencido').length;
+    const filtered = getFilteredRows().length;
+    const totalCount = rows.length;
+    const openCount = rows.filter((item) => getPayableStatus(item) === 'em_aberto').length;
+
     return {
-      totalOpen: rows.reduce((sum, item) => sum + Number(item.openAmount || 0), 0),
-      totalPaid: rows.reduce((sum, item) => sum + Number(item.paidAmount || 0), 0),
-      overdueCount: rows.filter((item) => getPayableStatus(item) === 'vencido').length,
-      filtered: getFilteredRows().length
+      totalOpen,
+      totalPaid,
+      overdueCount,
+      filtered,
+      totalCount,
+      openCount
     };
   }
 
@@ -620,78 +629,88 @@ export function createPayablesModule(ctx) {
     const summary = getSummary();
 
     tabEls.payables.innerHTML = `
-      <div class="filters-grid">
-        <div><strong>Total em aberto</strong><br>${currency(summary.totalOpen)}</div>
-        <div><strong>Total pago</strong><br>${currency(summary.totalPaid)}</div>
-        <div><strong>Vencidas</strong><br>${summary.overdueCount}</div>
-        <div><strong>Filtradas</strong><br>${summary.filtered}</div>
-      </div>
+      <div class="section-stack">
+        <div class="section-summary-card">
+          <div class="section-summary-grid">
+            <div class="section-summary-item">
+              <span>Total de contas</span>
+              <strong>${summary.totalCount}</strong>
+            </div>
+            <div class="section-summary-item">
+              <span>Em aberto</span>
+              <strong>${summary.openCount}</strong>
+            </div>
+            <div class="section-summary-item">
+              <span>Vencidas</span>
+              <strong>${summary.overdueCount}</strong>
+            </div>
+            <div class="section-summary-item">
+              <span>Total em aberto</span>
+              <strong>${currency(summary.totalOpen)}</strong>
+            </div>
+          </div>
+        </div>
 
-      <div class="section-header" style="margin-top:16px;">
-        <h2>Contas a pagar</h2>
-      </div>
+        <div class="table-card">
+          <div class="section-header">
+            <h2>Contas a pagar</h2>
+            <div class="form-actions">
+              <button class="btn btn-primary" type="button" id="open-payable-form-btn">Nova conta</button>
+            </div>
+          </div>
 
-      <p class="auth-hint">Cadastro em modal e lista com rolagem interna.</p>
+          <div class="search-row" style="margin-bottom:16px;">
+            <input id="payable-filter-supplier" placeholder="Fornecedor" value="${escapeHtml(filters.supplier)}" />
+            <select id="payable-filter-status">
+              <option value="">Todos os status</option>
+              <option value="em_aberto" ${filters.status === 'em_aberto' ? 'selected' : ''}>Em aberto</option>
+              <option value="vencido" ${filters.status === 'vencido' ? 'selected' : ''}>Vencido</option>
+              <option value="quitado" ${filters.status === 'quitado' ? 'selected' : ''}>Quitado</option>
+            </select>
+            <input id="payable-filter-date-from" type="date" value="${escapeHtml(filters.dateFrom)}" />
+            <input id="payable-filter-date-to" type="date" value="${escapeHtml(filters.dateTo)}" />
+            <button class="btn btn-secondary" type="button" id="payable-filter-apply">Filtrar</button>
+            <button class="btn btn-secondary" type="button" id="payable-filter-clear">Limpar</button>
+          </div>
 
-      <div class="form-actions" style="margin-bottom:16px;">
-        <button class="btn btn-primary" type="button" id="open-payable-form-btn">Nova conta</button>
-      </div>
-
-      <div class="section-header">
-        <h2>Lista de contas a pagar</h2>
-        <span>${rows.length} resultado(s)</span>
-      </div>
-
-      <div class="filters-grid">
-        <input id="payable-filter-supplier" placeholder="Fornecedor" value="${escapeHtml(filters.supplier)}" />
-        <select id="payable-filter-status">
-          <option value="">Todos os status</option>
-          <option value="em_aberto" ${filters.status === 'em_aberto' ? 'selected' : ''}>Em aberto</option>
-          <option value="vencido" ${filters.status === 'vencido' ? 'selected' : ''}>Vencido</option>
-          <option value="quitado" ${filters.status === 'quitado' ? 'selected' : ''}>Quitado</option>
-        </select>
-        <input id="payable-filter-date-from" type="date" value="${escapeHtml(filters.dateFrom)}" />
-        <input id="payable-filter-date-to" type="date" value="${escapeHtml(filters.dateTo)}" />
-        <button class="btn btn-secondary" type="button" id="payable-filter-apply">Filtrar</button>
-        <button class="btn btn-secondary" type="button" id="payable-filter-clear">Limpar</button>
-      </div>
-
-      <div class="table-wrap" style="margin-top:16px;">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Fornecedor</th>
-              <th>Descrição</th>
-              <th>Vencimento</th>
-              <th>Total</th>
-              <th>Em aberto</th>
-              <th>Status</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${
-              rows.map((row) => {
-                const status = getPayableStatus(row);
-                return `
-                  <tr>
-                    <td>${escapeHtml(row.supplierName || '-')}</td>
-                    <td>${escapeHtml(row.description || '-')}</td>
-                    <td>${escapeHtml(row.dueDate || '-')}</td>
-                    <td>${currency(row.totalAmount || 0)}</td>
-                    <td>${currency(row.openAmount || 0)}</td>
-                    <td><span class="badge badge-${getStatusTagClass(status)}">${getStatusLabel(status)}</span></td>
-                    <td>${renderPayableActions(row)}</td>
-                  </tr>
-                `;
-              }).join('') || `
+          <div class="table-wrap scroll-dual">
+            <table class="table">
+              <thead>
                 <tr>
-                  <td colspan="7">Nenhuma conta encontrada.</td>
+                  <th>Fornecedor</th>
+                  <th>Descrição</th>
+                  <th>Vencimento</th>
+                  <th>Total</th>
+                  <th>Em aberto</th>
+                  <th>Status</th>
+                  <th>Ações</th>
                 </tr>
-              `
-            }
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                ${
+                  rows.map((row) => {
+                    const status = getPayableStatus(row);
+                    return `
+                      <tr>
+                        <td>${escapeHtml(row.supplierName || '-')}</td>
+                        <td>${escapeHtml(row.description || '-')}</td>
+                        <td>${escapeHtml(row.dueDate || '-')}</td>
+                        <td>${currency(row.totalAmount || 0)}</td>
+                        <td>${currency(row.openAmount || 0)}</td>
+                        <td><span class="badge badge-${getStatusTagClass(status)}">${getStatusLabel(status)}</span></td>
+                        <td>${renderPayableActions(row)}</td>
+                      </tr>
+                    `;
+                  }).join('') || `
+                    <tr>
+                      <td colspan="7">Nenhuma conta encontrada.</td>
+                    </tr>
+                  `
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     `;
 
