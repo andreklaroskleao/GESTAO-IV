@@ -397,7 +397,7 @@ export function createSalesModule(ctx) {
       return;
     }
 
-    const isBarcodeSearch = /^[0-9A-Za-z._\\-/]+$/.test(normalized) && normalized.length >= 3;
+    const isBarcodeSearch = /^[0-9A-Za-z._/\\-]+$/.test(normalized) && normalized.length >= 3;
 
     if (!isBarcodeSearch && normalized.length < 2) {
       resultsEl.innerHTML = `
