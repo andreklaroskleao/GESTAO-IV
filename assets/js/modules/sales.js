@@ -1,5 +1,3 @@
-Segue o sales.js completo, atualizado e compatível:
-
 import { escapeHtml, showToast, bindAsyncButton } from './ui.js';
 
 export function createSalesModule(ctx) {
