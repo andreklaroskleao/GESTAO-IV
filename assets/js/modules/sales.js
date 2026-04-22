@@ -11,7 +11,6 @@ export function createSalesModule(ctx) {
     toNumber,
     formatDateTime,
     paymentMethods,
-    clientsModule,
     printModule
   } = ctx;
 
@@ -25,6 +24,7 @@ export function createSalesModule(ctx) {
   let keyboardBound = false;
   let isFinishingSale = false;
   let searchTerm = '';
+  let productSearchDebounce = null;
 
   let saleFormState = {
     customerName: '',
@@ -88,25 +88,24 @@ export function createSalesModule(ctx) {
   }
 
   function getSelectedClientLabel() {
-  if (!state.selectedSaleClient) {
-    const typedName = String(saleFormState.customerName || '').trim();
-    const isAnonymousSale =
-      !typedName ||
-      typedName.toLowerCase() === 'consumidor final';
+    if (!state.selectedSaleClient) {
+      const typedName = String(saleFormState.customerName || '').trim();
+      const isAnonymousSale =
+        !typedName || typedName.toLowerCase() === 'consumidor final';
+
+      return {
+        name: isAnonymousSale ? 'Cliente não identificado' : typedName,
+        cpf: saleFormState.includeCpf
+          ? (saleFormState.customerCpf || 'Sem CPF informado')
+          : 'Sem CPF informado'
+      };
+    }
 
     return {
-      name: isAnonymousSale ? 'Cliente não identificado' : typedName,
-      cpf: saleFormState.includeCpf
-        ? (saleFormState.customerCpf || 'Sem CPF informado')
-        : 'Sem CPF informado'
+      name: state.selectedSaleClient.name || 'Cliente selecionado',
+      cpf: getSelectedClientCpf() || 'Sem CPF informado'
     };
   }
-
-  return {
-    name: state.selectedSaleClient.name || 'Cliente selecionado',
-    cpf: getSelectedClientCpf() || 'Sem CPF informado'
-  };
-}
 
   function syncSaleFormStateFromDom() {
     const customerNameInput = tabEls.sales?.querySelector('#sale-customer-name');
@@ -356,14 +355,29 @@ export function createSalesModule(ctx) {
     const normalized = String(term || '').trim().toLowerCase();
     if (!normalized) return [];
 
-    return getActiveProducts()
-      .filter((product) =>
-        [product.name, product.barcode, product.brand, product.supplier]
-          .join(' ')
-          .toLowerCase()
-          .includes(normalized)
-      )
-      .slice(0, 8);
+    const products = getActiveProducts();
+    const results = [];
+
+    for (let i = 0; i < products.length; i += 1) {
+      const product = products[i];
+
+      const name = String(product.name || '').toLowerCase();
+      const barcode = String(product.barcode || '').toLowerCase();
+      const brand = String(product.brand || '').toLowerCase();
+      const supplier = String(product.supplier || '').toLowerCase();
+
+      if (
+        name.includes(normalized) ||
+        barcode.includes(normalized) ||
+        brand.includes(normalized) ||
+        supplier.includes(normalized)
+      ) {
+        results.push(product);
+        if (results.length >= 8) break;
+      }
+    }
+
+    return results;
   }
 
   function renderSearchResults() {
@@ -378,6 +392,18 @@ export function createSalesModule(ctx) {
         <div class="empty-state sales-empty-box">
           <strong>Pesquise um produto</strong>
           <span>Digite nome ou código de barras para listar resultados.</span>
+        </div>
+      `;
+      return;
+    }
+
+    const isBarcodeSearch = /^[0-9A-Za-z._\\-/]+$/.test(normalized) && normalized.length >= 3;
+
+    if (!isBarcodeSearch && normalized.length < 2) {
+      resultsEl.innerHTML = `
+        <div class="empty-state sales-empty-box">
+          <strong>Continue digitando</strong>
+          <span>Digite pelo menos 2 caracteres ou use o código de barras.</span>
         </div>
       `;
       return;
@@ -699,14 +725,7 @@ export function createSalesModule(ctx) {
             </div>
           `;
         } else {
-          const results = getActiveProducts()
-            .filter((product) =>
-              [product.name, product.barcode, product.brand, product.supplier]
-                .join(' ')
-                .toLowerCase()
-                .includes(term)
-            )
-            .slice(0, 8);
+          const results = getSearchResults(term);
 
           resultsHost.innerHTML =
             results.map((product) => `
@@ -1045,6 +1064,7 @@ export function createSalesModule(ctx) {
 
       showToast('Venda excluída e estoque devolvido.', 'success');
       closeModal();
+      render();
     });
   }
 
@@ -1286,156 +1306,156 @@ export function createSalesModule(ctx) {
     });
   }
 
- function openClientPicker() {
-  const modalRoot = document.getElementById('modal-root');
-  if (!modalRoot) return;
+  function openClientPicker() {
+    const modalRoot = document.getElementById('modal-root');
+    if (!modalRoot) return;
 
-  let customerSearch = '';
+    let customerSearch = '';
 
-  function getClientRows() {
-    return (state.clients || [])
-      .filter((item) => item.deleted !== true && item.active !== false);
-  }
-
-  function getFilteredClients() {
-    const allClients = getClientRows();
-    const term = String(customerSearch || '').trim().toLowerCase();
-
-    if (!term) {
-      return allClients.slice(0, 10);
+    function getClientRows() {
+      return (state.clients || [])
+        .filter((item) => item.deleted !== true && item.active !== false);
     }
 
-    return allClients
-      .filter((client) => {
-        const haystack = [
-          client.name,
-          client.cpf,
-          client.document,
-          client.phone,
-          client.email
-        ]
-          .join(' ')
-          .toLowerCase();
+    function getFilteredClients() {
+      const allClients = getClientRows();
+      const term = String(customerSearch || '').trim().toLowerCase();
 
-        return haystack.includes(term);
-      })
-      .slice(0, 30);
-  }
+      if (!term) {
+        return allClients.slice(0, 10);
+      }
 
-  function renderClientPickerContent() {
-    const rows = getFilteredClients();
-    const host = modalRoot.querySelector('#sale-client-picker-host');
-    if (!host) return;
+      return allClients
+        .filter((client) => {
+          const haystack = [
+            client.name,
+            client.cpf,
+            client.document,
+            client.phone,
+            client.email
+          ]
+            .join(' ')
+            .toLowerCase();
 
-    host.innerHTML = `
-      <div class="section-stack">
-        <div class="form-grid">
-          <label style="grid-column:1 / -1;">
-            Buscar cliente
-            <input
-              type="text"
-              id="sale-client-search-input"
-              placeholder="Digite nome, CPF, telefone ou email"
-              value="${escapeHtml(customerSearch)}"
-              autocomplete="off"
-            />
-          </label>
+          return haystack.includes(term);
+        })
+        .slice(0, 30);
+    }
+
+    function renderClientPickerContent() {
+      const rows = getFilteredClients();
+      const host = modalRoot.querySelector('#sale-client-picker-host');
+      if (!host) return;
+
+      host.innerHTML = `
+        <div class="section-stack">
+          <div class="form-grid">
+            <label style="grid-column:1 / -1;">
+              Buscar cliente
+              <input
+                type="text"
+                id="sale-client-search-input"
+                placeholder="Digite nome, CPF, telefone ou email"
+                value="${escapeHtml(customerSearch)}"
+                autocomplete="off"
+              />
+            </label>
+          </div>
+
+          <div class="empty-state" style="text-align:left;">
+            <strong>${customerSearch ? 'Resultados filtrados' : 'Clientes iniciais'}</strong>
+            <span>
+              ${customerSearch
+                ? 'Mostrando até 30 clientes encontrados.'
+                : 'Mostrando até 10 clientes. Digite para refinar.'}
+            </span>
+          </div>
+
+          <div class="stack-list list-scroll">
+            ${
+              rows.map((client) => `
+                <button
+                  type="button"
+                  class="list-item client-picker-item"
+                  data-pick-client="${client.id}"
+                >
+                  <strong>${escapeHtml(client.name || 'Sem nome')}</strong>
+                  <span>CPF: ${escapeHtml(client.cpf || client.document || 'Não informado')}</span>
+                  <span>Telefone: ${escapeHtml(client.phone || 'Não informado')}</span>
+                </button>
+              `).join('') || `
+                <div class="empty-state sales-empty-box">
+                  <strong>Nenhum cliente encontrado</strong>
+                  <span>Tente outro nome, CPF ou telefone.</span>
+                </div>
+              `
+            }
+          </div>
         </div>
+      `;
 
-        <div class="empty-state" style="text-align:left;">
-          <strong>${customerSearch ? 'Resultados filtrados' : 'Clientes recentes / iniciais'}</strong>
-          <span>
-            ${customerSearch
-              ? 'Mostrando até 30 clientes encontrados.'
-              : 'Mostrando até 10 clientes. Digite para refinar.'}
-          </span>
-        </div>
+      const searchInput = host.querySelector('#sale-client-search-input');
+      searchInput?.addEventListener('input', (event) => {
+        customerSearch = event.currentTarget.value || '';
+        renderClientPickerContent();
+      });
 
-        <div class="stack-list list-scroll">
-          ${
-            rows.map((client) => `
-              <button
-                type="button"
-                class="list-item client-picker-item"
-                data-pick-client="${client.id}"
-              >
-                <strong>${escapeHtml(client.name || 'Sem nome')}</strong>
-                <span>CPF: ${escapeHtml(client.cpf || client.document || 'Não informado')}</span>
-                <span>Telefone: ${escapeHtml(client.phone || 'Não informado')}</span>
-              </button>
-            `).join('') || `
-              <div class="empty-state sales-empty-box">
-                <strong>Nenhum cliente encontrado</strong>
-                <span>Tente outro nome, CPF ou telefone.</span>
-              </div>
-            `
+      host.querySelectorAll('[data-pick-client]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const clientId = btn.dataset.pickClient;
+          const client = getClientRows().find((item) => String(item.id) === String(clientId));
+          if (!client) return;
+
+          state.selectedSaleClient = client;
+          saleFormState.customerName = client?.name || saleFormState.customerName || '';
+
+          if (saleFormState.includeCpf) {
+            saleFormState.customerCpf = String(client?.cpf || client?.document || '').trim();
           }
+
+          const input = tabEls.sales.querySelector('#sale-customer-name');
+          const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
+          const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
+
+          if (input) input.value = saleFormState.customerName;
+
+          if (cpfCheck?.checked && cpfInput) {
+            cpfInput.value = String(client?.cpf || client?.document || '').trim();
+          }
+
+          modalRoot.innerHTML = '';
+          render();
+        });
+      });
+
+      setTimeout(() => {
+        searchInput?.focus();
+      }, 30);
+    }
+
+    modalRoot.innerHTML = `
+      <div class="modal-backdrop" id="sale-client-modal-backdrop">
+        <div class="modal-card">
+          <div class="section-header">
+            <h2>Selecionar cliente</h2>
+            <button class="btn btn-secondary" type="button" id="sale-client-modal-close">Fechar</button>
+          </div>
+          <div id="sale-client-picker-host"></div>
         </div>
       </div>
     `;
 
-    const searchInput = host.querySelector('#sale-client-search-input');
-    searchInput?.addEventListener('input', (event) => {
-      customerSearch = event.currentTarget.value || '';
-      renderClientPickerContent();
+    const closeModal = () => {
+      modalRoot.innerHTML = '';
+    };
+
+    modalRoot.querySelector('#sale-client-modal-close')?.addEventListener('click', closeModal);
+    modalRoot.querySelector('#sale-client-modal-backdrop')?.addEventListener('click', (event) => {
+      if (event.target.id === 'sale-client-modal-backdrop') closeModal();
     });
 
-    host.querySelectorAll('[data-pick-client]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const clientId = btn.dataset.pickClient;
-        const client = getClientRows().find((item) => String(item.id) === String(clientId));
-        if (!client) return;
-
-        state.selectedSaleClient = client;
-        saleFormState.customerName = client?.name || saleFormState.customerName || '';
-
-        if (saleFormState.includeCpf) {
-          saleFormState.customerCpf = String(client?.cpf || client?.document || '').trim();
-        }
-
-        const input = tabEls.sales.querySelector('#sale-customer-name');
-        const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
-        const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
-
-        if (input) input.value = saleFormState.customerName;
-
-        if (cpfCheck?.checked && cpfInput) {
-          cpfInput.value = String(client?.cpf || client?.document || '').trim();
-        }
-
-        modalRoot.innerHTML = '';
-        render();
-      });
-    });
-
-    setTimeout(() => {
-      searchInput?.focus();
-    }, 30);
+    renderClientPickerContent();
   }
-
-  modalRoot.innerHTML = `
-    <div class="modal-backdrop" id="sale-client-modal-backdrop">
-      <div class="modal-card">
-        <div class="section-header">
-          <h2>Selecionar cliente</h2>
-          <button class="btn btn-secondary" type="button" id="sale-client-modal-close">Fechar</button>
-        </div>
-        <div id="sale-client-picker-host"></div>
-      </div>
-    </div>
-  `;
-
-  const closeModal = () => {
-    modalRoot.innerHTML = '';
-  };
-
-  modalRoot.querySelector('#sale-client-modal-close')?.addEventListener('click', closeModal);
-  modalRoot.querySelector('#sale-client-modal-backdrop')?.addEventListener('click', (event) => {
-    if (event.target.id === 'sale-client-modal-backdrop') closeModal();
-  });
-
-  renderClientPickerContent();
-}
 
   function render() {
     if (loadSalesFocusMode()) {
@@ -1469,7 +1489,7 @@ export function createSalesModule(ctx) {
             ${isSalesFocusMode() ? `
               <div class="sales-focus-banner">
                 <strong>Modo foco ativo</strong>
-                <span>Histórico oculto para operação rápida de vendas.</span>
+                <span>Operação rápida de vendas.</span>
               </div>
             ` : ''}
 
@@ -1616,14 +1636,27 @@ export function createSalesModule(ctx) {
     const searchInput = tabEls.sales.querySelector('#sale-product-search');
 
     searchInput?.addEventListener('input', (event) => {
-      searchTerm = event.currentTarget.value || '';
-      renderSearchResults();
+      const nextValue = event.currentTarget.value || '';
+
+      if (productSearchDebounce) {
+        clearTimeout(productSearchDebounce);
+      }
+
+      productSearchDebounce = setTimeout(() => {
+        searchTerm = nextValue;
+        renderSearchResults();
+      }, 180);
     });
 
     searchInput?.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter') return;
 
       event.preventDefault();
+
+      if (productSearchDebounce) {
+        clearTimeout(productSearchDebounce);
+        productSearchDebounce = null;
+      }
 
       const rawValue = event.currentTarget.value || '';
       const trimmed = String(rawValue).trim();
