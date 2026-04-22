@@ -26,16 +26,6 @@ export function createSalesModule(ctx) {
   let isFinishingSale = false;
   let searchTerm = '';
 
-  let saleFormState = {
-    customerName: '',
-    includeCpf: false,
-    customerCpf: '',
-    paymentMethod: paymentMethods?.[0] || 'Dinheiro',
-    discount: '0',
-    amountPaid: '0',
-    notes: ''
-  };
-
   function focusSearchInput() {
     const input = tabEls.sales?.querySelector('#sale-product-search');
     if (input) {
@@ -69,32 +59,6 @@ export function createSalesModule(ctx) {
     return (state.cart || []).find((item) => item.id === productId) || null;
   }
 
-  function getSelectedClientCpf() {
-    return String(
-      state.selectedSaleClient?.cpf ||
-      state.selectedSaleClient?.document ||
-      ''
-    ).trim();
-  }
-
-  function syncSaleFormStateFromDom() {
-    const customerNameInput = tabEls.sales?.querySelector('#sale-customer-name');
-    const includeCpfInput = tabEls.sales?.querySelector('#sale-include-cpf');
-    const customerCpfInput = tabEls.sales?.querySelector('#sale-customer-cpf');
-    const paymentMethodInput = tabEls.sales?.querySelector('#sale-payment-method');
-    const discountInput = tabEls.sales?.querySelector('input[name="discount"]');
-    const amountPaidInput = tabEls.sales?.querySelector('input[name="amountPaid"]');
-    const notesInput = tabEls.sales?.querySelector('textarea[name="notes"]');
-
-    if (customerNameInput) saleFormState.customerName = customerNameInput.value || '';
-    if (includeCpfInput) saleFormState.includeCpf = Boolean(includeCpfInput.checked);
-    if (customerCpfInput) saleFormState.customerCpf = customerCpfInput.value || '';
-    if (paymentMethodInput) saleFormState.paymentMethod = paymentMethodInput.value || (paymentMethods?.[0] || 'Dinheiro');
-    if (discountInput) saleFormState.discount = discountInput.value || '0';
-    if (amountPaidInput) saleFormState.amountPaid = amountPaidInput.value || '0';
-    if (notesInput) saleFormState.notes = notesInput.value || '';
-  }
-
   function clearCartWithFeedback() {
     state.cart = [];
     render();
@@ -102,21 +66,22 @@ export function createSalesModule(ctx) {
   }
 
   function calculateCartTotal() {
+    const discountInput = tabEls.sales?.querySelector('input[name="discount"]');
+    const paidInput = tabEls.sales?.querySelector('input[name="amountPaid"]');
+
     const subtotal = (state.cart || []).reduce((sum, item) => {
       return sum + (Number(item.salePrice || 0) * Number(item.quantity || 0));
     }, 0);
 
-    const discount = toNumber(saleFormState.discount || 0);
+    const discount = toNumber(discountInput?.value || 0);
     const total = Math.max(0, subtotal - discount);
-    const amountPaid = toNumber(saleFormState.amountPaid || 0);
+    const amountPaid = toNumber(paidInput?.value || 0);
     const change = Math.max(0, amountPaid - total);
 
     return { subtotal, discount, total, amountPaid, change };
   }
 
   function updateSaleSummary() {
-    syncSaleFormStateFromDom();
-
     const { subtotal, discount, total, change } = calculateCartTotal();
 
     tabEls.sales.querySelector('#sale-subtotal').textContent = currency(subtotal);
@@ -151,8 +116,6 @@ export function createSalesModule(ctx) {
   }
 
   function addProductToCart(productId) {
-    syncSaleFormStateFromDom();
-
     const product = getProductById(productId);
     if (!product) return;
 
@@ -182,8 +145,6 @@ export function createSalesModule(ctx) {
   }
 
   function changeCartQuantity(productId, delta) {
-    syncSaleFormStateFromDom();
-
     const row = getCartRow(productId);
     const stockQty = getAvailableStock(productId);
     if (!row) return;
@@ -312,435 +273,9 @@ export function createSalesModule(ctx) {
 
     cartEl.querySelectorAll('[data-cart-remove]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        syncSaleFormStateFromDom();
         state.cart = state.cart.filter((item) => item.id !== btn.dataset.cartRemove);
         render();
       });
-    });
-  }
-
-  function cloneSaleItems(items = []) {
-    return (items || []).map((item) => ({
-      productId: item.productId || '',
-      name: item.name || '',
-      quantity: Number(item.quantity || 0),
-      unitPrice: Number(item.unitPrice || 0),
-      total: Number(item.total || 0)
-    }));
-  }
-
-  function calcItemsSubtotal(items = []) {
-    return items.reduce((sum, item) => {
-      return sum + (Number(item.unitPrice || 0) * Number(item.quantity || 0));
-    }, 0);
-  }
-
-  function buildItemsDiff(oldItems = [], newItems = []) {
-    const map = new Map();
-
-    oldItems.forEach((item) => {
-      const key = String(item.productId || '');
-      if (!key) return;
-
-      if (!map.has(key)) {
-        map.set(key, { oldQty: 0, newQty: 0 });
-      }
-
-      map.get(key).oldQty += Number(item.quantity || 0);
-    });
-
-    newItems.forEach((item) => {
-      const key = String(item.productId || '');
-      if (!key) return;
-
-      if (!map.has(key)) {
-        map.set(key, { oldQty: 0, newQty: 0 });
-      }
-
-      map.get(key).newQty += Number(item.quantity || 0);
-    });
-
-    return map;
-  }
-
-  async function applySaleItemsStockDiff(oldItems = [], newItems = []) {
-    const diffMap = buildItemsDiff(oldItems, newItems);
-
-    for (const [productId, diff] of diffMap.entries()) {
-      const product = getProductById(productId);
-      if (!product) continue;
-
-      const delta = Number(diff.newQty || 0) - Number(diff.oldQty || 0);
-
-      if (delta === 0) continue;
-
-      const currentStock = Number(product.quantity || 0);
-      const nextStock = currentStock - delta;
-
-      if (nextStock < 0) {
-        throw new Error(`Estoque insuficiente para o produto "${product.name || productId}".`);
-      }
-
-      await updateByPath('products', productId, {
-        quantity: nextStock
-      });
-    }
-  }
-
-  function openEditSaleModal(saleId) {
-    const sale = (state.sales || []).find((item) => item.id === saleId && item.deleted !== true);
-    if (!sale) return;
-
-    const modalRoot = document.getElementById('modal-root');
-    if (!modalRoot) return;
-
-    let editingItems = cloneSaleItems(sale.items || []);
-    let productSearch = '';
-
-    function recalcAndRender() {
-      const subtotal = calcItemsSubtotal(editingItems);
-      const discount = toNumber(modalRoot.querySelector('input[name="discount"]')?.value || sale.discount || 0);
-      const total = Math.max(0, subtotal - discount);
-      const amountPaid = toNumber(modalRoot.querySelector('input[name="amountPaid"]')?.value || sale.amountPaid || 0);
-      const change = Math.max(0, amountPaid - total);
-
-      const itemsHost = modalRoot.querySelector('#edit-sale-items-host');
-      const totalsHost = modalRoot.querySelector('#edit-sale-totals');
-      const resultsHost = modalRoot.querySelector('#edit-sale-product-results');
-
-      if (itemsHost) {
-        itemsHost.innerHTML = editingItems.length
-          ? editingItems.map((item) => `
-              <div class="cart-item">
-                <div class="cart-line">
-                  <strong>${escapeHtml(item.name || '')}</strong>
-                  <span>${currency(Number(item.unitPrice || 0))}</span>
-                </div>
-                <div class="cart-line">
-                  <div class="cart-actions">
-                    <button class="icon-action-btn" type="button" data-edit-sale-item-decrease="${item.productId}">−</button>
-                    <strong>${Number(item.quantity || 0)}</strong>
-                    <button class="icon-action-btn" type="button" data-edit-sale-item-increase="${item.productId}">+</button>
-                  </div>
-                  <button class="icon-action-btn" type="button" data-edit-sale-item-remove="${item.productId}">🗑️</button>
-                </div>
-              </div>
-            `).join('')
-          : `
-              <div class="empty-state">
-                <strong>Nenhum item</strong>
-                <span>Adicione produtos à venda.</span>
-              </div>
-            `;
-      }
-
-      if (totalsHost) {
-        totalsHost.innerHTML = `
-          <div class="summary-line"><span>Subtotal</span><strong>${currency(subtotal)}</strong></div>
-          <div class="summary-line"><span>Desconto</span><strong>${currency(discount)}</strong></div>
-          <div class="summary-line total"><span>Total</span><strong>${currency(total)}</strong></div>
-          <div class="summary-line"><span>Troco</span><strong>${currency(change)}</strong></div>
-        `;
-      }
-
-      if (resultsHost) {
-        const term = String(productSearch || '').trim().toLowerCase();
-
-        if (!term) {
-          resultsHost.innerHTML = `
-            <div class="empty-state">
-              <strong>Pesquise um produto</strong>
-              <span>Digite nome ou código de barras para adicionar item.</span>
-            </div>
-          `;
-        } else {
-          const results = getActiveProducts()
-            .filter((product) =>
-              [product.name, product.barcode, product.brand, product.supplier]
-                .join(' ')
-                .toLowerCase()
-                .includes(term)
-            )
-            .slice(0, 8);
-
-          resultsHost.innerHTML =
-            results.map((product) => `
-              <div class="list-item">
-                <strong>${escapeHtml(product.name)}</strong>
-                <span>${escapeHtml(product.barcode || 'Sem código')} · Estoque: ${product.quantity} · ${currency(product.salePrice || 0)}</span>
-                <div class="form-actions">
-                  <button class="btn btn-secondary" type="button" data-edit-sale-add-product="${product.id}">
-                    Adicionar
-                  </button>
-                </div>
-              </div>
-            `).join('') || `
-              <div class="empty-state">
-                <strong>Nenhum produto encontrado</strong>
-                <span>Refine sua pesquisa.</span>
-              </div>
-            `;
-        }
-      }
-
-      modalRoot.querySelectorAll('[data-edit-sale-item-decrease]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const productId = btn.dataset.editSaleItemDecrease;
-          const row = editingItems.find((item) => item.productId === productId);
-          if (!row) return;
-
-          row.quantity = Math.max(0, Number(row.quantity || 0) - 1);
-          editingItems = editingItems.filter((item) => Number(item.quantity || 0) > 0);
-          editingItems.forEach((item) => {
-            item.total = Number(item.unitPrice || 0) * Number(item.quantity || 0);
-          });
-          recalcAndRender();
-        });
-      });
-
-      modalRoot.querySelectorAll('[data-edit-sale-item-increase]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const productId = btn.dataset.editSaleItemIncrease;
-          const row = editingItems.find((item) => item.productId === productId);
-          const product = getProductById(productId);
-          if (!row || !product) return;
-
-          const originalQty = Number(
-            (sale.items || []).find((item) => item.productId === productId)?.quantity || 0
-          );
-          const currentEditedQty = Number(row.quantity || 0);
-          const extraNeeded = currentEditedQty + 1 - originalQty;
-          const availableNow = Number(product.quantity || 0);
-
-          if (extraNeeded > availableNow) {
-            showToast('Estoque insuficiente para aumentar este item.', 'error');
-            return;
-          }
-
-          row.quantity += 1;
-          row.total = Number(row.unitPrice || 0) * Number(row.quantity || 0);
-          recalcAndRender();
-        });
-      });
-
-      modalRoot.querySelectorAll('[data-edit-sale-item-remove]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const productId = btn.dataset.editSaleItemRemove;
-          editingItems = editingItems.filter((item) => item.productId !== productId);
-          recalcAndRender();
-        });
-      });
-
-      modalRoot.querySelectorAll('[data-edit-sale-add-product]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const productId = btn.dataset.editSaleAddProduct;
-          const product = getProductById(productId);
-          if (!product) return;
-
-          const existing = editingItems.find((item) => item.productId === productId);
-          const originalQty = Number(
-            (sale.items || []).find((item) => item.productId === productId)?.quantity || 0
-          );
-          const currentEditedQty = Number(existing?.quantity || 0);
-          const extraNeeded = currentEditedQty + 1 - originalQty;
-          const availableNow = Number(product.quantity || 0);
-
-          if (extraNeeded > availableNow) {
-            showToast('Estoque insuficiente para adicionar este item.', 'error');
-            return;
-          }
-
-          if (existing) {
-            existing.quantity += 1;
-            existing.total = Number(existing.unitPrice || 0) * Number(existing.quantity || 0);
-          } else {
-            editingItems.push({
-              productId: product.id,
-              name: product.name,
-              quantity: 1,
-              unitPrice: Number(product.salePrice || 0),
-              total: Number(product.salePrice || 0)
-            });
-          }
-
-          recalcAndRender();
-        });
-      });
-    }
-
-    modalRoot.innerHTML = `
-      <div class="modal-backdrop" id="edit-sale-modal-backdrop">
-        <div class="modal-card" style="max-width:960px;">
-          <div class="section-header">
-            <h2>Editar venda</h2>
-            <button class="btn btn-secondary" type="button" id="edit-sale-close-btn">Fechar</button>
-          </div>
-
-          <form id="edit-sale-form" class="form-grid">
-            <label style="grid-column:1 / -1;">
-              Cliente
-              <input name="customerName" type="text" value="${escapeHtml(sale.customerName || '')}" />
-            </label>
-
-            <label style="grid-column:1 / -1;">
-              CPF
-              <input name="customerCpf" type="text" value="${escapeHtml(sale.customerCpf || '')}" />
-            </label>
-
-            <label>
-              Forma de pagamento
-              <select name="paymentMethod">
-                ${paymentMethods.map((method) => `
-                  <option value="${escapeHtml(method)}" ${sale.paymentMethod === method ? 'selected' : ''}>
-                    ${escapeHtml(method)}
-                  </option>
-                `).join('')}
-              </select>
-            </label>
-
-            <label>
-              Desconto
-              <input name="discount" type="number" min="0" step="0.01" value="${Number(sale.discount || 0)}" />
-            </label>
-
-            <label>
-              Valor pago
-              <input name="amountPaid" type="number" min="0" step="0.01" value="${Number(sale.amountPaid || 0)}" />
-            </label>
-
-            <label style="grid-column:1 / -1;">
-              Observações
-              <textarea name="notes">${escapeHtml(sale.notes || '')}</textarea>
-            </label>
-
-            <div style="grid-column:1 / -1;">
-              <div class="section-header">
-                <h3>Itens da venda</h3>
-              </div>
-              <div id="edit-sale-items-host" class="card-scroll-y"></div>
-            </div>
-
-            <label style="grid-column:1 / -1;">
-              Pesquisar produto para adicionar
-              <input id="edit-sale-product-search" type="text" placeholder="Digite nome ou código de barras" />
-            </label>
-
-            <div id="edit-sale-product-results" style="grid-column:1 / -1;"></div>
-
-            <div id="edit-sale-totals" class="summary-box" style="grid-column:1 / -1;"></div>
-
-            <div class="form-actions" style="grid-column:1 / -1;">
-              <button class="btn btn-primary" type="submit">Salvar alterações</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    `;
-
-    const closeModal = () => {
-      modalRoot.innerHTML = '';
-    };
-
-    modalRoot.querySelector('#edit-sale-close-btn')?.addEventListener('click', closeModal);
-    modalRoot.querySelector('#edit-sale-modal-backdrop')?.addEventListener('click', (event) => {
-      if (event.target.id === 'edit-sale-modal-backdrop') closeModal();
-    });
-
-    modalRoot.querySelector('#edit-sale-product-search')?.addEventListener('input', (event) => {
-      productSearch = event.currentTarget.value || '';
-      recalcAndRender();
-    });
-
-    modalRoot.querySelector('input[name="discount"]')?.addEventListener('input', recalcAndRender);
-    modalRoot.querySelector('input[name="amountPaid"]')?.addEventListener('input', recalcAndRender);
-
-    modalRoot.querySelector('#edit-sale-form')?.addEventListener('submit', async (event) => {
-      event.preventDefault();
-
-      const form = event.currentTarget;
-      const values = Object.fromEntries(new FormData(form).entries());
-
-      const subtotal = calcItemsSubtotal(editingItems);
-      const discount = toNumber(values.discount || 0);
-      const total = Math.max(0, subtotal - discount);
-      const amountPaid = toNumber(values.amountPaid || 0);
-      const change = Math.max(0, amountPaid - total);
-
-      if (!editingItems.length) {
-        alert('A venda precisa ter pelo menos 1 item.');
-        return;
-      }
-
-      if (amountPaid < total) {
-        alert('O valor pago é menor que o total da venda.');
-        return;
-      }
-
-      const newItems = editingItems.map((item) => ({
-        productId: item.productId,
-        name: item.name,
-        quantity: Number(item.quantity || 0),
-        unitPrice: Number(item.unitPrice || 0),
-        total: Number(item.unitPrice || 0) * Number(item.quantity || 0)
-      }));
-
-      try {
-        await applySaleItemsStockDiff(sale.items || [], newItems);
-
-        await updateByPath('sales', sale.id, {
-          customerName: String(values.customerName || '').trim() || 'Não identificado',
-          customerCpf: String(values.customerCpf || '').trim(),
-          paymentMethod: String(values.paymentMethod || 'Dinheiro'),
-          discount,
-          subtotal,
-          total,
-          amountPaid,
-          change,
-          notes: String(values.notes || ''),
-          items: newItems
-        });
-
-        showToast('Venda atualizada com sucesso.', 'success');
-        closeModal();
-      } catch (error) {
-        alert(error.message || 'Não foi possível atualizar a venda.');
-      }
-    });
-
-    recalcAndRender();
-  }
-
-  async function restoreSaleItemsToStock(sale) {
-    const items = Array.isArray(sale.items) ? sale.items : [];
-
-    for (const item of items) {
-      const product = getProductById(item.productId);
-      if (!product) continue;
-
-      await updateByPath('products', item.productId, {
-        quantity: Number(product.quantity || 0) + Number(item.quantity || 0)
-      });
-    }
-  }
-
-  function deleteSale(saleId) {
-    const sale = (state.sales || []).find((item) => item.id === saleId && item.deleted !== true);
-    if (!sale) return;
-
-    window.openConfirmDeleteModal?.({
-      title: 'Excluir venda',
-      message: 'Deseja realmente excluir esta venda? O estoque dos produtos será devolvido.',
-      confirmLabel: 'Excluir venda',
-      onConfirm: async () => {
-        await restoreSaleItemsToStock(sale);
-
-        await updateByPath('sales', sale.id, {
-          deleted: true,
-          deletedAt: new Date().toISOString()
-        });
-
-        showToast('Venda excluída e estoque devolvido.', 'success');
-      }
     });
   }
 
@@ -774,8 +309,6 @@ export function createSalesModule(ctx) {
         <td>
           <div class="actions-inline-compact">
             <button class="icon-action-btn" type="button" data-print-sale="${sale.id}" aria-label="Imprimir">🖨️</button>
-            <button class="icon-action-btn" type="button" data-edit-sale="${sale.id}" aria-label="Editar">✏️</button>
-            <button class="icon-action-btn" type="button" data-delete-sale="${sale.id}" aria-label="Excluir">🗑️</button>
           </div>
         </td>
       </tr>
@@ -788,14 +321,6 @@ export function createSalesModule(ctx) {
         printModule.printSaleReceipt(normalizeSaleForPrint(sale));
       });
     });
-
-    historyEl.querySelectorAll('[data-edit-sale]').forEach((btn) => {
-      btn.addEventListener('click', () => openEditSaleModal(btn.dataset.editSale));
-    });
-
-    historyEl.querySelectorAll('[data-delete-sale]').forEach((btn) => {
-      btn.addEventListener('click', () => deleteSale(btn.dataset.deleteSale));
-    });
   }
 
   function bindCpfToggle() {
@@ -806,18 +331,9 @@ export function createSalesModule(ctx) {
     if (!checkbox || !wrap || !input) return;
 
     const sync = () => {
-      saleFormState.includeCpf = Boolean(checkbox.checked);
-      wrap.style.display = saleFormState.includeCpf ? '' : 'none';
-
-      if (saleFormState.includeCpf && !String(input.value || '').trim()) {
-        input.value = getSelectedClientCpf();
-      }
-
-      if (!saleFormState.includeCpf) {
-        input.value = '';
-      }
-
-      saleFormState.customerCpf = input.value || '';
+      const checked = checkbox.checked;
+      wrap.style.display = checked ? '' : 'none';
+      if (!checked) input.value = '';
     };
 
     checkbox.addEventListener('change', sync);
@@ -829,22 +345,18 @@ export function createSalesModule(ctx) {
     isFinishingSale = true;
 
     try {
-      syncSaleFormStateFromDom();
-
       if (!(state.cart || []).length) {
         alert('Adicione pelo menos um produto à venda.');
         return;
       }
 
-      const selectedClientName = String(state.selectedSaleClient?.name || '').trim();
-      const selectedClientCpf = getSelectedClientCpf();
-
-      const typedCustomerName = String(saleFormState.customerName || '').trim();
-      const typedCustomerCpf = String(saleFormState.customerCpf || '').trim();
-
-      const customerName = typedCustomerName || selectedClientName || 'Não identificado';
-      const customerCpf = saleFormState.includeCpf ? (typedCustomerCpf || selectedClientCpf) : '';
-
+      const paymentMethod = tabEls.sales.querySelector('#sale-payment-method')?.value || 'Dinheiro';
+      const notes = tabEls.sales.querySelector('textarea[name="notes"]')?.value || '';
+      const customerNameRaw = tabEls.sales.querySelector('#sale-customer-name')?.value || '';
+      const includeCpf = Boolean(tabEls.sales.querySelector('#sale-include-cpf')?.checked);
+      const customerCpfRaw = tabEls.sales.querySelector('#sale-customer-cpf')?.value || '';
+      const customerName = String(customerNameRaw).trim() || 'Não identificado';
+      const customerCpf = includeCpf ? String(customerCpfRaw).trim() : '';
       const { subtotal, discount, total, amountPaid, change } = calculateCartTotal();
 
       if (amountPaid < total) {
@@ -866,14 +378,13 @@ export function createSalesModule(ctx) {
       const payload = {
         customerName,
         customerCpf,
-        customerId: state.selectedSaleClient?.id || '',
-        paymentMethod: saleFormState.paymentMethod || 'Dinheiro',
+        paymentMethod,
         subtotal,
         discount,
         total,
         amountPaid,
         change,
-        notes: saleFormState.notes || '',
+        notes,
         items,
         cashierName: state.currentUser?.fullName || '',
         deleted: false
@@ -898,21 +409,21 @@ export function createSalesModule(ctx) {
       });
 
       state.cart = [];
-      state.selectedSaleClient = null;
       searchTerm = '';
-
-      saleFormState = {
-        customerName: '',
-        includeCpf: false,
-        customerCpf: '',
-        paymentMethod: paymentMethods?.[0] || 'Dinheiro',
-        discount: '0',
-        amountPaid: '0',
-        notes: ''
-      };
 
       const searchInput = tabEls.sales.querySelector('#sale-product-search');
       if (searchInput) searchInput.value = '';
+
+      tabEls.sales.querySelector('#sale-customer-name').value = '';
+      tabEls.sales.querySelector('#sale-payment-method').value = paymentMethods?.[0] || 'Dinheiro';
+      tabEls.sales.querySelector('input[name="discount"]').value = '0';
+      tabEls.sales.querySelector('input[name="amountPaid"]').value = '0';
+      tabEls.sales.querySelector('textarea[name="notes"]').value = '';
+
+      const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
+      const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
+      if (cpfCheck) cpfCheck.checked = false;
+      if (cpfInput) cpfInput.value = '';
 
       showToast('Venda finalizada com sucesso.', 'success');
       render();
@@ -964,22 +475,8 @@ export function createSalesModule(ctx) {
     clientsModule.renderClientPicker?.({
       target: '#sale-client-picker-host',
       onSelect: (client) => {
-        state.selectedSaleClient = client || null;
-        saleFormState.customerName = client?.name || saleFormState.customerName || '';
-        if (saleFormState.includeCpf) {
-          saleFormState.customerCpf = String(client?.cpf || client?.document || '').trim();
-        }
-
         const input = tabEls.sales.querySelector('#sale-customer-name');
-        const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
-        const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
-
-        if (input) input.value = saleFormState.customerName;
-
-        if (cpfCheck?.checked && cpfInput) {
-          cpfInput.value = String(client?.cpf || client?.document || '').trim();
-        }
-
+        if (input) input.value = client.name || '';
         closeModal();
       }
     });
@@ -1016,17 +513,17 @@ export function createSalesModule(ctx) {
             <div class="form-grid" style="margin-bottom:14px;">
               <label style="grid-column:1 / -1;">
                 Cliente
-                <input id="sale-customer-name" type="text" value="${escapeHtml(saleFormState.customerName)}" placeholder="Deixe em branco para não identificado" />
+                <input id="sale-customer-name" type="text" value="" placeholder="Deixe em branco para não identificado" />
               </label>
 
               <label style="grid-column:1 / -1; display:flex; align-items:center; gap:8px;">
-                <input id="sale-include-cpf" type="checkbox" style="width:auto;" ${saleFormState.includeCpf ? 'checked' : ''} />
+                <input id="sale-include-cpf" type="checkbox" style="width:auto;" />
                 <span>Inserir CPF no cupom</span>
               </label>
 
               <label id="sale-cpf-wrap" style="grid-column:1 / -1; display:none;">
                 CPF
-                <input id="sale-customer-cpf" type="text" value="${escapeHtml(saleFormState.customerCpf)}" placeholder="Digite o CPF do cliente" />
+                <input id="sale-customer-cpf" type="text" placeholder="Digite o CPF do cliente" />
               </label>
             </div>
 
@@ -1050,23 +547,23 @@ export function createSalesModule(ctx) {
               <label>
                 Forma de pagamento
                 <select id="sale-payment-method">
-                  ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}" ${saleFormState.paymentMethod === method ? 'selected' : ''}>${escapeHtml(method)}</option>`).join('')}
+                  ${paymentMethods.map((method) => `<option value="${escapeHtml(method)}">${escapeHtml(method)}</option>`).join('')}
                 </select>
               </label>
 
               <label>
                 Desconto
-                <input name="discount" type="number" step="0.01" min="0" value="${escapeHtml(String(saleFormState.discount))}" />
+                <input name="discount" type="number" step="0.01" min="0" value="0" />
               </label>
 
               <label>
                 Valor pago
-                <input name="amountPaid" type="number" step="0.01" min="0" value="${escapeHtml(String(saleFormState.amountPaid))}" />
+                <input name="amountPaid" type="number" step="0.01" min="0" value="0" />
               </label>
 
               <label style="grid-column:1 / -1;">
                 Observações
-                <textarea name="notes">${escapeHtml(saleFormState.notes)}</textarea>
+                <textarea name="notes"></textarea>
               </label>
             </div>
 
@@ -1133,55 +630,11 @@ export function createSalesModule(ctx) {
       }
     });
 
-    const customerNameInput = tabEls.sales.querySelector('#sale-customer-name');
-    const includeCpfInput = tabEls.sales.querySelector('#sale-include-cpf');
-    const customerCpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
-    const paymentMethodInput = tabEls.sales.querySelector('#sale-payment-method');
-    const discountInput = tabEls.sales.querySelector('input[name="discount"]');
-    const amountPaidInput = tabEls.sales.querySelector('input[name="amountPaid"]');
-    const notesInput = tabEls.sales.querySelector('textarea[name="notes"]');
-
-    customerNameInput?.addEventListener('input', (event) => {
-      saleFormState.customerName = event.currentTarget.value || '';
-    });
-
-    includeCpfInput?.addEventListener('change', () => {
-      saleFormState.includeCpf = Boolean(includeCpfInput.checked);
-    });
-
-    customerCpfInput?.addEventListener('input', (event) => {
-      saleFormState.customerCpf = event.currentTarget.value || '';
-    });
-
-    paymentMethodInput?.addEventListener('change', (event) => {
-      saleFormState.paymentMethod = event.currentTarget.value || (paymentMethods?.[0] || 'Dinheiro');
-      updateSaleSummary();
-    });
-
-    discountInput?.addEventListener('input', (event) => {
-      saleFormState.discount = event.currentTarget.value || '0';
-      updateSaleSummary();
-    });
-
-    amountPaidInput?.addEventListener('input', (event) => {
-      saleFormState.amountPaid = event.currentTarget.value || '0';
-      updateSaleSummary();
-    });
-
-    notesInput?.addEventListener('input', (event) => {
-      saleFormState.notes = event.currentTarget.value || '';
-    });
-
     bindAsyncButton(tabEls.sales.querySelector('#sale-select-client-btn'), async () => {
       openClientPicker();
     }, { busyLabel: 'Abrindo...' });
 
     bindAsyncButton(tabEls.sales.querySelector('#sale-clear-client-btn'), async () => {
-      state.selectedSaleClient = null;
-      saleFormState.customerName = '';
-      saleFormState.includeCpf = false;
-      saleFormState.customerCpf = '';
-
       const clientInput = tabEls.sales.querySelector('#sale-customer-name');
       const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
       const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
@@ -1193,6 +646,10 @@ export function createSalesModule(ctx) {
       bindCpfToggle();
       showToast('Cliente limpo.', 'info');
     }, { busyLabel: 'Limpando...' });
+
+    tabEls.sales.querySelector('#sale-payment-method')?.addEventListener('change', updateSaleSummary);
+    tabEls.sales.querySelector('input[name="discount"]')?.addEventListener('input', updateSaleSummary);
+    tabEls.sales.querySelector('input[name="amountPaid"]')?.addEventListener('input', updateSaleSummary);
 
     bindAsyncButton(tabEls.sales.querySelector('#finish-sale-btn'), async () => {
       await finishSale();
