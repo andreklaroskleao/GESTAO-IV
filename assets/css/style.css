@@ -2529,3 +2529,263 @@ body.theme-light #tab-sales option {
     max-width: none;
   }
 }
+
+/* =========================
+   VENDAS
+========================= */
+
+.sales-page {
+  gap: 18px;
+}
+
+.sales-top-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 420px);
+  gap: 18px;
+  align-items: start;
+}
+
+.sales-main-panel,
+.sales-summary-panel {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sales-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.sales-panel-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.sales-panel-header span {
+  display: block;
+  margin-top: 4px;
+  opacity: 0.78;
+  font-size: 13px;
+}
+
+.sales-search-box {
+  margin-bottom: 16px;
+}
+
+.sales-search-box input {
+  min-height: 52px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.sales-client-box,
+.sales-results-panel,
+.sales-payment-box {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sales-client-box {
+  margin-bottom: 16px;
+}
+
+.sales-client-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sales-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.sales-inline-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sales-product-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.sales-product-result + .sales-product-result {
+  margin-top: 10px;
+}
+
+.sales-product-result-main {
+  display: grid;
+  gap: 4px;
+}
+
+.sales-product-result-main strong {
+  line-height: 1.35;
+}
+
+.sales-product-result-main span {
+  opacity: 0.78;
+  font-size: 13px;
+}
+
+.sales-product-result-meta {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.sales-product-result-meta strong {
+  font-size: 15px;
+}
+
+.sales-product-result-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sales-summary-panel {
+  position: sticky;
+  top: 16px;
+}
+
+.sales-cart-list {
+  min-height: 180px;
+  max-height: 340px;
+}
+
+.sales-cart-item {
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.sales-cart-item + .sales-cart-item {
+  margin-top: 10px;
+}
+
+.sales-cart-top,
+.sales-cart-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.sales-cart-top {
+  margin-bottom: 10px;
+}
+
+.sales-cart-title {
+  display: grid;
+  gap: 4px;
+}
+
+.sales-cart-title span {
+  opacity: 0.78;
+  font-size: 12px;
+}
+
+.sales-cart-price,
+.sales-cart-total {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sales-cart-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sales-total-box {
+  margin-top: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.sales-total-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.sales-total-highlight {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+  font-size: 18px;
+}
+
+.sales-total-highlight strong {
+  font-size: 22px;
+}
+
+.sales-final-actions {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.sales-history-card {
+  margin-top: 2px;
+}
+
+.sales-empty-box {
+  min-height: 92px;
+}
+
+@media (max-width: 1100px) {
+  .sales-top-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sales-summary-panel {
+    position: static;
+    top: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .sales-product-result {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+
+  .sales-product-result-meta {
+    text-align: left;
+  }
+
+  .sales-final-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .sales-client-box-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
