@@ -1161,7 +1161,7 @@ export function createSalesModule(ctx) {
     const searchInput = tabEls.sales.querySelector('#sale-product-search');
     searchInput?.addEventListener('input', (event) => {
       searchTerm = event.currentTarget.value || '';
-      renderSearchResults();
+      
     });
 
     searchInput?.addEventListener('keydown', (event) => {
