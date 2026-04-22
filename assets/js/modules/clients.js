@@ -9,312 +9,374 @@ export function createClientsModule(ctx) {
     auditModule
   } = ctx;
 
-  let pickerState = {
-    target: '',
-    onSelect: null,
-    term: ''
-  };
-
-  let isSavingClient = false;
-
   function getRows() {
     return (state.clients || []).filter((item) => item.deleted !== true);
   }
 
-  function getClientById(clientId) {
-    return getRows().find((item) => item.id === clientId) || null;
-  }
-
   function getEditingClient() {
-    return getClientById(state.editingClientId);
+    return getRows().find((item) => item.id === state.editingClientId) || null;
   }
 
-  async function saveClient() {
-    if (isSavingClient) return;
-    isSavingClient = true;
+  function hasDuplicateDocument(documentValue, ignoreId = '') {
+    const normalized = String(documentValue || '').trim();
+    if (!normalized) return false;
 
-    try {
-      const form = document.querySelector('#client-form');
-      if (!form) return;
-
-      const payload = Object.fromEntries(new FormData(form).entries());
-
-      payload.active = String(payload.active || 'true') === 'true';
-      payload.deleted = false;
-
-      if (!payload.name) {
-        alert('Informe o nome do cliente.');
-        return;
-      }
-
-      if (state.editingClientId) {
-        const current = getEditingClient();
-
-        await updateByPath('clients', state.editingClientId, payload);
-
-        await auditModule?.log?.({
-          module: 'clients',
-          action: 'update',
-          entityType: 'client',
-          entityId: state.editingClientId,
-          entityLabel: payload.name || current?.name || '',
-          description: 'Cliente atualizado.'
-        });
-
-        state.editingClientId = null;
-        showToast('Cliente atualizado.', 'success');
-      } else {
-        const createdId = await createDoc(refs.clients, payload);
-
-        await auditModule?.log?.({
-          module: 'clients',
-          action: 'create',
-          entityType: 'client',
-          entityId: createdId,
-          entityLabel: payload.name || '',
-          description: 'Cliente cadastrado.'
-        });
-
-        showToast('Cliente cadastrado.', 'success');
-      }
-
-      form.reset();
-
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('clients:changed'));
-      }
-    } finally {
-      isSavingClient = false;
-    }
-  }
-
-  async function inactivateClient(clientId) {
-    const client = getClientById(clientId);
-    if (!client) return;
-
-    await updateByPath('clients', clientId, {
-      active: false,
-      deleted: false
+    return getRows().some((item) => {
+      return String(item.id || '') !== String(ignoreId || '') &&
+        String(item.document || item.cpf || '').trim() === normalized;
     });
-
-    await auditModule?.log?.({
-      module: 'clients',
-      action: 'inactivate',
-      entityType: 'client',
-      entityId: clientId,
-      entityLabel: client.name || '',
-      description: 'Cliente inativado.'
-    });
-
-    showToast('Cliente inativado.', 'success');
   }
 
-  async function reactivateClient(clientId) {
-    const client = getClientById(clientId);
-    if (!client) return;
+  function buildClientPayload(form) {
+    const values = Object.fromEntries(new FormData(form).entries());
 
-    await updateByPath('clients', clientId, {
+    return {
+      name: String(values.name || '').trim(),
+      cpf: String(values.cpf || '').trim(),
+      document: String(values.cpf || '').trim(),
+      phone: String(values.phone || '').trim(),
+      email: String(values.email || '').trim(),
+      address: String(values.address || '').trim(),
+      neighborhood: String(values.neighborhood || '').trim(),
+      city: String(values.city || '').trim(),
+      state: String(values.state || '').trim(),
+      zipCode: String(values.zipCode || '').trim(),
+      notes: String(values.notes || '').trim(),
       active: true,
       deleted: false
-    });
-
-    await auditModule?.log?.({
-      module: 'clients',
-      action: 'reactivate',
-      entityType: 'client',
-      entityId: clientId,
-      entityLabel: client.name || '',
-      description: 'Cliente reativado.'
-    });
-
-    showToast('Cliente reativado.', 'success');
+    };
   }
 
-  function fillClientForm(form, client) {
+  function fillForm(form, client) {
     if (!form) return;
 
     form.elements.name.value = client?.name || '';
+    form.elements.cpf.value = client?.cpf || client?.document || '';
     form.elements.phone.value = client?.phone || '';
     form.elements.email.value = client?.email || '';
-    form.elements.document.value = client?.document || '';
     form.elements.address.value = client?.address || '';
-    form.elements.reference.value = client?.reference || '';
+    form.elements.neighborhood.value = client?.neighborhood || '';
+    form.elements.city.value = client?.city || '';
+    form.elements.state.value = client?.state || '';
+    form.elements.zipCode.value = client?.zipCode || '';
     form.elements.notes.value = client?.notes || '';
-    form.elements.active.value = String(client?.active !== false);
   }
 
-  function bindClientFormEvents() {
+  async function saveClient() {
     const form = document.querySelector('#client-form');
     if (!form) return;
 
-    bindSubmitGuard(form, saveClient, { busyLabel: 'Salvando...' });
+    const payload = buildClientPayload(form);
 
-    const resetBtn = document.querySelector('#client-reset-btn');
-    bindAsyncButton(resetBtn, async () => {
-      state.editingClientId = null;
-      const freshForm = document.querySelector('#client-form');
-      if (freshForm) {
-        freshForm.reset();
-        fillClientForm(freshForm, null);
-      }
-
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('clients:changed'));
-      }
-    }, { busyLabel: 'Limpando...' });
-  }
-
-  function renderClientForm(editingClientId = null) {
-    if (editingClientId !== null && editingClientId !== undefined) {
-      state.editingClientId = editingClientId;
+    if (!payload.name) {
+      alert('Informe o nome do cliente.');
+      return;
     }
 
-    const editing = getEditingClient();
+    if (hasDuplicateDocument(payload.document, state.editingClientId)) {
+      alert('Já existe um cliente com este CPF/documento.');
+      return;
+    }
 
-    const html = `
-      <div class="section-header">
-        <h2>${editing ? 'Editar cliente' : 'Cadastrar cliente'}</h2>
-        <span class="muted">${editing ? 'Atualize os dados do cliente.' : 'Cadastro de clientes.'}</span>
-      </div>
+    if (state.editingClientId) {
+      await updateByPath('clients', state.editingClientId, {
+        ...payload,
+        editedAt: new Date().toISOString(),
+        editedBy: String(state.currentUser?.uid || state.currentUser?.fullName || '')
+      });
 
-      <form id="client-form" class="form-grid mobile-optimized">
-        <div class="form-section" style="grid-column:1 / -1;">
-          <div class="form-section-title">
-            <h3>1. Dados principais</h3>
-            <span>Identificação e contato</span>
+      await auditModule.log({
+        module: 'clients',
+        action: 'update',
+        entityType: 'client',
+        entityId: state.editingClientId,
+        entityLabel: payload.name,
+        description: 'Cliente atualizado.'
+      });
+
+      state.editingClientId = null;
+      showToast('Cliente atualizado com sucesso.', 'success');
+    } else {
+      const createdId = await createDoc(refs.clients, {
+        ...payload,
+        createdAt: new Date()
+      });
+
+      await auditModule.log({
+        module: 'clients',
+        action: 'create',
+        entityType: 'client',
+        entityId: createdId,
+        entityLabel: payload.name,
+        description: 'Cliente cadastrado.'
+      });
+
+      showToast('Cliente cadastrado com sucesso.', 'success');
+    }
+
+    const modalRoot = document.getElementById('modal-root');
+    if (modalRoot) modalRoot.innerHTML = '';
+  }
+
+  function openClientFormModal(clientId = null) {
+    state.editingClientId = clientId;
+
+    const client = getEditingClient();
+    const modalRoot = document.getElementById('modal-root');
+    if (!modalRoot) return;
+
+    modalRoot.innerHTML = `
+      <div class="modal-backdrop" id="client-form-modal-backdrop">
+        <div class="modal-card" style="max-width:920px;">
+          <div class="section-header">
+            <h2>${clientId ? 'Editar cliente' : 'Novo cliente'}</h2>
+            <button class="btn btn-secondary" type="button" id="client-form-close-btn">Fechar</button>
           </div>
-          <div class="soft-divider"></div>
 
-          <div class="form-grid">
-            <label>Nome
+          <form id="client-form" class="form-grid">
+            <label style="grid-column:1 / -1;">
+              Nome
               <input name="name" required />
             </label>
 
-            <label>Telefone
+            <label>
+              CPF
+              <input name="cpf" />
+            </label>
+
+            <label>
+              Telefone
               <input name="phone" />
             </label>
 
-            <label>E-mail
+            <label>
+              E-mail
               <input name="email" type="email" />
             </label>
 
-            <label>Documento
-              <input name="document" />
-            </label>
-
-            <label>Status
-              <select name="active">
-                <option value="true">Ativo</option>
-                <option value="false">Inativo</option>
-              </select>
-            </label>
-
-            <label style="grid-column:1 / -1;">Endereço
+            <label style="grid-column:1 / -1;">
+              Endereço
               <input name="address" />
             </label>
 
-            <label style="grid-column:1 / -1;">Referência
-              <input name="reference" />
+            <label>
+              Bairro
+              <input name="neighborhood" />
             </label>
 
-            <label style="grid-column:1 / -1;">Observações
-              <textarea name="notes"></textarea>
+            <label>
+              Cidade
+              <input name="city" />
             </label>
-          </div>
-        </div>
 
-        <div class="form-actions" style="grid-column:1 / -1;">
-          <button class="btn btn-primary" type="submit">${editing ? 'Salvar cliente' : 'Cadastrar cliente'}</button>
-          <button class="btn btn-secondary" type="button" id="client-reset-btn">Limpar</button>
-        </div>
-      </form>
-    `;
+            <label>
+              Estado
+              <input name="state" />
+            </label>
 
-    queueMicrotask(() => {
-      const form = document.querySelector('#client-form');
-      fillClientForm(form, editing);
-      bindClientFormEvents();
-    });
+            <label>
+              CEP
+              <input name="zipCode" />
+            </label>
 
-    return html;
-  }
+            <label style="grid-column:1 / -1;">
+              Observações
+              <textarea name="notes" rows="4"></textarea>
+            </label>
 
-  function getFilteredPickerRows() {
-    return getRows()
-      .filter((item) => item.active !== false)
-      .filter((item) => {
-        const haystack = [
-          item.name,
-          item.phone,
-          item.email,
-          item.document,
-          item.address
-        ].join(' ').toLowerCase();
-
-        return !pickerState.term || haystack.includes(pickerState.term.toLowerCase());
-      })
-      .slice(0, 20);
-  }
-
-  function renderClientPickerList() {
-    const host = document.querySelector(pickerState.target);
-    if (!host) return;
-
-    const rows = getFilteredPickerRows();
-
-    host.innerHTML = `
-      <div class="section-stack">
-        <div class="search-row">
-          <input
-            id="client-picker-search"
-            placeholder="Buscar cliente por nome, telefone, documento ou endereço"
-            value="${escapeHtml(pickerState.term)}"
-          />
-        </div>
-
-        <div class="stack-list slim-list">
-          ${rows.map((item) => `
-            <button class="list-item" type="button" data-client-picker-select="${item.id}">
-              <strong>${escapeHtml(item.name || '-')}</strong>
-              <span>${escapeHtml(item.phone || 'Sem telefone')} · ${escapeHtml(item.document || 'Sem documento')}</span>
-              <span>${escapeHtml(item.address || 'Sem endereço')}</span>
-            </button>
-          `).join('') || '<div class="empty-state">Nenhum cliente encontrado.</div>'}
+            <div class="form-actions" style="grid-column:1 / -1;">
+              <button class="btn btn-primary" type="submit">
+                ${clientId ? 'Salvar alterações' : 'Cadastrar cliente'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     `;
 
-    const searchInput = host.querySelector('#client-picker-search');
-    searchInput?.addEventListener('input', (event) => {
-      pickerState.term = event.currentTarget.value || '';
-      renderClientPickerList();
+    const closeModal = () => {
+      modalRoot.innerHTML = '';
+      state.editingClientId = null;
+    };
+
+    modalRoot.querySelector('#client-form-close-btn')?.addEventListener('click', closeModal);
+    modalRoot.querySelector('#client-form-modal-backdrop')?.addEventListener('click', (event) => {
+      if (event.target.id === 'client-form-modal-backdrop') closeModal();
     });
 
-    host.querySelectorAll('[data-client-picker-select]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const client = getClientById(btn.dataset.clientPickerSelect);
-        if (!client) return;
+    const form = modalRoot.querySelector('#client-form');
+    fillForm(form, client);
 
-        pickerState.onSelect?.(client);
+    bindSubmitGuard(form, async () => {
+      await saveClient();
+    }, { busyLabel: 'Salvando...' });
+  }
+
+  function openDeleteClientModal(clientId, onSaved) {
+    const client = getRows().find((item) => item.id === clientId);
+    if (!client) return;
+
+    window.openConfirmDeleteModal?.({
+      title: 'Excluir cliente',
+      message: `Deseja realmente excluir "${client.name || 'cliente'}"?`,
+      confirmLabel: 'Excluir cliente',
+      onConfirm: async () => {
+        await updateByPath('clients', client.id, {
+          deleted: true,
+          active: false,
+          deletedAt: new Date().toISOString(),
+          deletedBy: String(state.currentUser?.uid || state.currentUser?.fullName || '')
+        });
+
+        await auditModule.log({
+          module: 'clients',
+          action: 'delete',
+          entityType: 'client',
+          entityId: client.id,
+          entityLabel: client.name || '',
+          description: 'Cliente excluído logicamente.'
+        });
+
+        showToast('Cliente excluído com sucesso.', 'success');
+        onSaved?.();
+      }
+    });
+  }
+
+  function renderClientPicker({ target, onSelect } = {}) {
+    const host = typeof target === 'string' ? document.querySelector(target) : target;
+    if (!host) return;
+
+    const rows = getRows();
+
+    host.innerHTML = `
+      <div class="stack-list">
+        ${
+          rows.map((client) => `
+            <button class="list-item" type="button" data-pick-client="${client.id}">
+              <strong>${escapeHtml(client.name || '-')}</strong>
+              <span>${escapeHtml(client.phone || 'Sem telefone')} · ${escapeHtml(client.cpf || client.document || 'Sem CPF')}</span>
+            </button>
+          `).join('') || `
+            <div class="empty-state">
+              <strong>Nenhum cliente encontrado</strong>
+              <span>Cadastre um cliente para selecionar.</span>
+            </div>
+          `
+        }
+      </div>
+    `;
+
+    host.querySelectorAll('[data-pick-client]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const client = rows.find((item) => item.id === btn.dataset.pickClient);
+        if (client) {
+          onSelect?.(client);
+        }
       });
     });
   }
 
-  function renderClientPicker({ target, onSelect }) {
-    pickerState = {
-      target,
-      onSelect,
-      term: ''
-    };
+  function bindListEvents(root) {
+    root.querySelector('#open-client-form-btn')?.addEventListener('click', () => {
+      openClientFormModal(null);
+    });
 
-    renderClientPickerList();
+    root.querySelectorAll('[data-edit-client]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        openClientFormModal(btn.dataset.editClient);
+      });
+    });
+
+    root.querySelectorAll('[data-delete-client]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        openDeleteClientModal(btn.dataset.deleteClient, () => {
+          const clientsHost = root.closest('#clients-section-host') || root;
+          renderInto(clientsHost);
+        });
+      });
+    });
+  }
+
+  function renderTable(rows) {
+    return `
+      <div class="table-wrap scroll-dual">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>CPF</th>
+              <th>Telefone</th>
+              <th>E-mail</th>
+              <th>Cidade</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              rows.map((client) => `
+                <tr>
+                  <td>${escapeHtml(client.name || '-')}</td>
+                  <td>${escapeHtml(client.cpf || client.document || '-')}</td>
+                  <td>${escapeHtml(client.phone || '-')}</td>
+                  <td>${escapeHtml(client.email || '-')}</td>
+                  <td>${escapeHtml(client.city || '-')}</td>
+                  <td>
+                    <div class="actions-inline-compact">
+                      <button class="icon-action-btn" type="button" data-edit-client="${client.id}" aria-label="Editar">✏️</button>
+                      <button class="icon-action-btn" type="button" data-delete-client="${client.id}" aria-label="Excluir">🗑️</button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('') || `
+                <tr>
+                  <td colspan="6">Nenhum cliente encontrado.</td>
+                </tr>
+              `
+            }
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderInto(host) {
+    if (!host) return;
+
+    const rows = getRows();
+
+    host.innerHTML = `
+      <div class="table-card">
+        <div class="section-header">
+          <h2>Clientes</h2>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="button" id="open-client-form-btn">Novo cliente</button>
+          </div>
+        </div>
+
+        ${renderTable(rows)}
+      </div>
+    `;
+
+    bindListEvents(host);
+  }
+
+  function render() {
+    if (!ctx.hasPermission?.(state.currentUser, 'clients')) {
+      if (ctx.tabEls?.clients) {
+        ctx.tabEls.clients.innerHTML = renderBlocked();
+      }
+      return;
+    }
+
+    if (ctx.tabEls?.clients) {
+      renderInto(ctx.tabEls.clients);
+    }
   }
 
   return {
-    renderClientForm,
-    renderClientPicker,
-    inactivateClient,
-    reactivateClient,
-    getClientById
+    render,
+    renderInto,
+    renderClientPicker
   };
 }
