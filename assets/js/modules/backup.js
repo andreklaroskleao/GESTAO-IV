@@ -177,6 +177,7 @@ export function createBackupModule(ctx) {
   async function importCollectionDocs(collectionName, docs) {
     const refMap = getCollectionRefMap();
     const collectionRef = refMap[collectionName];
+
     const summary = {
       collectionName,
       received: Array.isArray(docs) ? docs.length : 0,
@@ -208,7 +209,7 @@ export function createBackupModule(ctx) {
           summary.updated += 1;
           continue;
         } catch (error) {
-          // Fallback para criação quando o documento ainda não existir.
+          // Se não conseguir atualizar, tenta criar.
         }
       }
 
@@ -251,13 +252,16 @@ export function createBackupModule(ctx) {
       }
     }
 
-    const totals = summaries.reduce((acc, item) => {
-      acc.received += item.received;
-      acc.updated += item.updated;
-      acc.created += item.created;
-      acc.skipped += item.skipped;
-      return acc;
-    }, { received: 0, updated: 0, created: 0, skipped: 0 });
+    const totals = summaries.reduce(
+      (acc, item) => {
+        acc.received += item.received;
+        acc.updated += item.updated;
+        acc.created += item.created;
+        acc.skipped += item.skipped;
+        return acc;
+      },
+      { received: 0, updated: 0, created: 0, skipped: 0 }
+    );
 
     await auditModule.log({
       module: 'backup',
