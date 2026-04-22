@@ -1286,35 +1286,107 @@ export function createSalesModule(ctx) {
     });
   }
 
-  function openClientPicker() {
-    const modalRoot = document.getElementById('modal-root');
-    if (!modalRoot) return;
+ function openClientPicker() {
+  const modalRoot = document.getElementById('modal-root');
+  if (!modalRoot) return;
 
-    modalRoot.innerHTML = `
-      <div class="modal-backdrop" id="sale-client-modal-backdrop">
-        <div class="modal-card">
-          <div class="section-header">
-            <h2>Selecionar cliente</h2>
-            <button class="btn btn-secondary" type="button" id="sale-client-modal-close">Fechar</button>
-          </div>
-          <div id="sale-client-picker-host"></div>
+  let customerSearch = '';
+
+  function getClientRows() {
+    return (state.clients || [])
+      .filter((item) => item.deleted !== true && item.active !== false);
+  }
+
+  function getFilteredClients() {
+    const allClients = getClientRows();
+    const term = String(customerSearch || '').trim().toLowerCase();
+
+    if (!term) {
+      return allClients.slice(0, 10);
+    }
+
+    return allClients
+      .filter((client) => {
+        const haystack = [
+          client.name,
+          client.cpf,
+          client.document,
+          client.phone,
+          client.email
+        ]
+          .join(' ')
+          .toLowerCase();
+
+        return haystack.includes(term);
+      })
+      .slice(0, 30);
+  }
+
+  function renderClientPickerContent() {
+    const rows = getFilteredClients();
+    const host = modalRoot.querySelector('#sale-client-picker-host');
+    if (!host) return;
+
+    host.innerHTML = `
+      <div class="section-stack">
+        <div class="form-grid">
+          <label style="grid-column:1 / -1;">
+            Buscar cliente
+            <input
+              type="text"
+              id="sale-client-search-input"
+              placeholder="Digite nome, CPF, telefone ou email"
+              value="${escapeHtml(customerSearch)}"
+              autocomplete="off"
+            />
+          </label>
+        </div>
+
+        <div class="empty-state" style="text-align:left;">
+          <strong>${customerSearch ? 'Resultados filtrados' : 'Clientes recentes / iniciais'}</strong>
+          <span>
+            ${customerSearch
+              ? 'Mostrando até 30 clientes encontrados.'
+              : 'Mostrando até 10 clientes. Digite para refinar.'}
+          </span>
+        </div>
+
+        <div class="stack-list list-scroll">
+          ${
+            rows.map((client) => `
+              <button
+                type="button"
+                class="list-item client-picker-item"
+                data-pick-client="${client.id}"
+              >
+                <strong>${escapeHtml(client.name || 'Sem nome')}</strong>
+                <span>CPF: ${escapeHtml(client.cpf || client.document || 'Não informado')}</span>
+                <span>Telefone: ${escapeHtml(client.phone || 'Não informado')}</span>
+              </button>
+            `).join('') || `
+              <div class="empty-state sales-empty-box">
+                <strong>Nenhum cliente encontrado</strong>
+                <span>Tente outro nome, CPF ou telefone.</span>
+              </div>
+            `
+          }
         </div>
       </div>
     `;
 
-    const closeModal = () => {
-      modalRoot.innerHTML = '';
-    };
-
-    modalRoot.querySelector('#sale-client-modal-close')?.addEventListener('click', closeModal);
-    modalRoot.querySelector('#sale-client-modal-backdrop')?.addEventListener('click', (event) => {
-      if (event.target.id === 'sale-client-modal-backdrop') closeModal();
+    const searchInput = host.querySelector('#sale-client-search-input');
+    searchInput?.addEventListener('input', (event) => {
+      customerSearch = event.currentTarget.value || '';
+      renderClientPickerContent();
     });
 
-    clientsModule.renderClientPicker?.({
-      target: '#sale-client-picker-host',
-      onSelect: (client) => {
-        state.selectedSaleClient = client || null;
+    host.querySelectorAll('[data-pick-client]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const clientId = btn.dataset.pickClient;
+        const client = getClientRows().find((item) => String(item.id) === String(clientId));
+        if (!client) return;
+
+        state.selectedSaleClient = client;
         saleFormState.customerName = client?.name || saleFormState.customerName || '';
 
         if (saleFormState.includeCpf) {
@@ -1331,10 +1403,39 @@ export function createSalesModule(ctx) {
           cpfInput.value = String(client?.cpf || client?.document || '').trim();
         }
 
-        closeModal();
-      }
+        modalRoot.innerHTML = '';
+        render();
+      });
     });
+
+    setTimeout(() => {
+      searchInput?.focus();
+    }, 30);
   }
+
+  modalRoot.innerHTML = `
+    <div class="modal-backdrop" id="sale-client-modal-backdrop">
+      <div class="modal-card">
+        <div class="section-header">
+          <h2>Selecionar cliente</h2>
+          <button class="btn btn-secondary" type="button" id="sale-client-modal-close">Fechar</button>
+        </div>
+        <div id="sale-client-picker-host"></div>
+      </div>
+    </div>
+  `;
+
+  const closeModal = () => {
+    modalRoot.innerHTML = '';
+  };
+
+  modalRoot.querySelector('#sale-client-modal-close')?.addEventListener('click', closeModal);
+  modalRoot.querySelector('#sale-client-modal-backdrop')?.addEventListener('click', (event) => {
+    if (event.target.id === 'sale-client-modal-backdrop') closeModal();
+  });
+
+  renderClientPickerContent();
+}
 
   function render() {
     if (loadSalesFocusMode()) {
