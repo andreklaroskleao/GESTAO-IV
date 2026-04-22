@@ -3079,3 +3079,124 @@ body.theme-light .section-summary-item {
 #sale-client-picker-host div {
   color: var(--text);
 }
+
+/* =========================================
+   CONTRASTE GLOBAL - ITENS DINAMICOS / MODAIS
+========================================= */
+
+body.theme-light .modal-card,
+body.theme-light .actions-sheet,
+body.theme-light .table-card,
+body.theme-light .panel,
+body.theme-light .card,
+body.theme-light .compact-card,
+body.theme-light .metric-card,
+body.theme-light .list-item,
+body.theme-light .empty-state {
+  color: var(--text);
+}
+
+body:not(.theme-light) .modal-card,
+body:not(.theme-light) .actions-sheet,
+body:not(.theme-light) .table-card,
+body:not(.theme-light) .panel,
+body:not(.theme-light) .card,
+body:not(.theme-light) .compact-card,
+body:not(.theme-light) .metric-card,
+body:not(.theme-light) .list-item,
+body:not(.theme-light) .empty-state {
+  color: var(--text);
+}
+
+body:not(.theme-light) .modal-card *,
+body:not(.theme-light) .actions-sheet *,
+body:not(.theme-light) .table-card *,
+body:not(.theme-light) .panel *,
+body:not(.theme-light) .card *,
+body:not(.theme-light) .compact-card *,
+body:not(.theme-light) .metric-card *,
+body:not(.theme-light) .list-item * {
+  color: inherit;
+}
+
+body:not(.theme-light) .muted,
+body:not(.theme-light) .auth-hint,
+body:not(.theme-light) small,
+body:not(.theme-light) .secondary-text {
+  color: var(--text-soft) !important;
+}
+
+body:not(.theme-light) input,
+body:not(.theme-light) select,
+body:not(.theme-light) textarea {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+body:not(.theme-light) option {
+  color: var(--text);
+  background: var(--panel);
+}
+
+/* =========================================
+   LISTAS DE SELECAO / PICKERS
+========================================= */
+
+.client-picker-item,
+.customer-picker-item,
+.entity-picker-item,
+.selectable-row,
+.search-result-item,
+.list-item button,
+.list-item a {
+  color: inherit;
+}
+
+body:not(.theme-light) .client-picker-item,
+body:not(.theme-light) .customer-picker-item,
+body:not(.theme-light) .entity-picker-item,
+body:not(.theme-light) .selectable-row,
+body:not(.theme-light) .search-result-item {
+  color: var(--text);
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+}
+
+body:not(.theme-light) .client-picker-item span,
+body:not(.theme-light) .customer-picker-item span,
+body:not(.theme-light) .entity-picker-item span,
+body:not(.theme-light) .selectable-row span,
+body:not(.theme-light) .search-result-item span {
+  color: var(--text-soft);
+}
+
+body:not(.theme-light) .client-picker-item strong,
+body:not(.theme-light) .customer-picker-item strong,
+body:not(.theme-light) .entity-picker-item strong,
+body:not(.theme-light) .selectable-row strong,
+body:not(.theme-light) .search-result-item strong {
+  color: var(--text);
+}
+
+/* =========================================
+   CLIENT PICKER
+========================================= */
+
+.client-picker-item {
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease;
+}
+
+.client-picker-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(37, 99, 235, 0.24);
+}
+
+.client-picker-item strong {
+  font-size: 15px;
+}
+
+.client-picker-item span {
+  font-size: 13px;
+}
