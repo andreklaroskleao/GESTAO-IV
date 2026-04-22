@@ -398,7 +398,7 @@ body.sidebar-collapsed .sidebar .nav-item:hover::after {
 }
 
 /* =========================================
-   HELPERS DE EXIBICAO
+   HELPERS
 ========================================= */
 
 .desktop-only-inline {
@@ -411,6 +411,28 @@ body.sidebar-collapsed .sidebar .nav-item:hover::after {
 
 .muted {
   color: var(--text-soft);
+}
+
+.inline-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.actions-inline-compact,
+.cart-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* =========================================
@@ -680,6 +702,43 @@ body.theme-light .icon-action-btn {
   font-size: 0.82rem;
 }
 
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.badge-neutral {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f3f3f3;
+}
+
+.badge-success {
+  background: rgba(46, 204, 113, 0.14);
+  color: #8ff0b5;
+  border-color: rgba(46, 204, 113, 0.25);
+}
+
+.badge-warning {
+  background: rgba(241, 196, 15, 0.14);
+  color: #ffd76a;
+  border-color: rgba(241, 196, 15, 0.25);
+}
+
+.badge-danger {
+  background: rgba(231, 76, 60, 0.14);
+  color: #ff9d90;
+  border-color: rgba(231, 76, 60, 0.25);
+}
+
 .tag {
   display: inline-flex;
   align-items: center;
@@ -707,32 +766,6 @@ body.theme-light .icon-action-btn {
 .tag.info {
   background: rgba(6, 182, 212, 0.14);
   border-color: rgba(6, 182, 212, 0.18);
-}
-
-/* =========================================
-   HELPERS DE ACAO
-========================================= */
-
-.inline-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.form-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.actions-inline-compact,
-.cart-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 /* =========================================
@@ -878,11 +911,19 @@ body.theme-light .icon-action-btn {
    CAMPOS DE BUSCA / FILTRO
 ========================================= */
 
-.search-row {
+.search-row,
+.filters-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
   align-items: stretch;
+}
+
+.search-row {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.filters-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .search-row > input,
@@ -1076,7 +1117,8 @@ body.theme-light .list-item {
   }
 
   .form-grid,
-  .search-row {
+  .search-row,
+  .filters-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1276,55 +1318,36 @@ body.theme-light tbody tr:hover {
    AJUSTES POR ABA
 ========================================= */
 
-/* Produtos */
 #tab-products .table-wrap,
-#tab-products .scroll-dual {
-  max-height: min(58vh, 460px);
-}
-
-/* Clientes */
+#tab-products .scroll-dual,
 #tab-clients .table-wrap,
-#tab-clients .scroll-dual {
-  max-height: min(58vh, 440px);
-}
-
-/* Fornecedores */
+#tab-clients .scroll-dual,
 #tab-suppliers .table-wrap,
-#tab-suppliers .scroll-dual {
-  max-height: min(58vh, 440px);
-}
-
-/* Compras */
+#tab-suppliers .scroll-dual,
 #tab-purchases .table-wrap,
-#tab-purchases .scroll-dual {
-  max-height: min(58vh, 440px);
-}
-
-/* Contas a pagar */
+#tab-purchases .scroll-dual,
 #tab-payables .table-wrap,
 #tab-payables .scroll-dual {
   max-height: min(58vh, 440px);
 }
 
-/* Usuários */
-#tab-users .table-wrap,
-#tab-users .scroll-dual {
-  max-height: min(58vh, 420px);
+#tab-products .table-wrap,
+#tab-products .scroll-dual {
+  max-height: min(58vh, 460px);
 }
 
-/* Relatórios */
+#tab-users .table-wrap,
+#tab-users .scroll-dual,
 #tab-reports .table-wrap,
 #tab-reports .scroll-dual {
   max-height: min(58vh, 420px);
 }
 
-/* Dashboard */
 #tab-dashboard .dashboard-list-scroll,
 #tab-dashboard .list-scroll {
   max-height: min(46vh, 320px);
 }
 
-/* Settings */
 #tab-settings .settings-audit-scroll {
   max-height: min(58vh, 460px);
   overflow: auto;
@@ -1530,7 +1553,7 @@ body.theme-light tbody tr:hover {
 }
 
 /* =========================================
-   MODAIS DE VENDA ANTIGOS / GENERICOS
+   COMPONENTES DE VENDA GENERICOS
 ========================================= */
 
 .sale-details-grid {
@@ -1892,51 +1915,6 @@ body.theme-light .search-result-item:hover {
 }
 
 /* =========================================
-   BADGES DA AUDITORIA
-========================================= */
-
-.badge-neutral,
-.badge-success,
-.badge-warning,
-.badge-danger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  white-space: nowrap;
-  position: static;
-}
-
-.badge-neutral {
-  background: rgba(255, 255, 255, 0.06);
-  color: #f3f3f3;
-}
-
-.badge-success {
-  background: rgba(46, 204, 113, 0.14);
-  color: #8ff0b5;
-  border-color: rgba(46, 204, 113, 0.25);
-}
-
-.badge-warning {
-  background: rgba(241, 196, 15, 0.14);
-  color: #ffd76a;
-  border-color: rgba(241, 196, 15, 0.25);
-}
-
-.badge-danger {
-  background: rgba(231, 76, 60, 0.14);
-  color: #ff9d90;
-  border-color: rgba(231, 76, 60, 0.25);
-}
-
-/* =========================================
    MODAL DE DETALHES DA AUDITORIA
 ========================================= */
 
@@ -2140,6 +2118,25 @@ body.theme-light .search-result-item:hover {
   min-height: 48px;
 }
 
+.sales-selected-client-box {
+  margin-bottom: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(37, 99, 235, 0.08);
+  display: grid;
+  gap: 4px;
+}
+
+.sales-selected-client-box strong {
+  font-size: 15px;
+}
+
+.sales-selected-client-box span {
+  font-size: 13px;
+  opacity: 0.86;
+}
+
 /* =========================================
    VENDAS - RESULTADOS DE PRODUTO
 ========================================= */
@@ -2190,6 +2187,11 @@ body.theme-light .search-result-item:hover {
   justify-content: flex-end;
 }
 
+.is-primary-result {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: rgba(37, 99, 235, 0.08);
+}
+
 /* =========================================
    VENDAS - CARRINHO
 ========================================= */
@@ -2209,10 +2211,16 @@ body.theme-light .search-result-item:hover {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.025);
+  transition: transform 0.16s ease, border-color 0.16s ease;
 }
 
 .sales-cart-item + .sales-cart-item {
   margin-top: 10px;
+}
+
+.sales-cart-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .sales-cart-top,
@@ -2243,10 +2251,25 @@ body.theme-light .search-result-item:hover {
   white-space: nowrap;
 }
 
+.sales-cart-total {
+  font-size: 16px;
+  font-weight: 800;
+}
+
 .sales-cart-qty {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.sales-cart-qty .icon-action-btn {
+  min-width: 38px;
+  min-height: 38px;
+  font-size: 18px;
+}
+
+.sales-cart-remove-btn {
+  border-color: rgba(231, 76, 60, 0.24);
 }
 
 /* =========================================
@@ -2255,7 +2278,7 @@ body.theme-light .search-result-item:hover {
 
 .sales-total-box {
   margin-top: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 18px;
   padding: 16px;
   background: rgba(255, 255, 255, 0.025);
@@ -2271,13 +2294,20 @@ body.theme-light .search-result-item:hover {
 
 .sales-total-highlight {
   margin-top: 8px;
-  padding-top: 12px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: 14px;
+  padding: 14px 12px;
+  border-top: 0;
   font-size: 18px;
 }
 
 .sales-total-highlight strong {
-  font-size: 22px;
+  font-size: 28px;
+}
+
+.sales-change-strong {
+  color: #7ee7a8;
+  font-size: 20px;
 }
 
 .sales-final-actions {
@@ -2287,12 +2317,18 @@ body.theme-light .search-result-item:hover {
   gap: 10px;
 }
 
+#finish-sale-btn {
+  min-height: 52px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
 .sales-empty-box {
   min-height: 92px;
 }
 
 /* =========================================
-   HISTÓRICO DE VENDAS
+   HISTORICO DE VENDAS
 ========================================= */
 
 .sales-history-card {
@@ -2367,19 +2403,38 @@ body.theme-light .search-result-item:hover {
 .sales-history-sale-card {
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 12px;
+  padding: 14px;
   display: grid;
   gap: 10px;
-  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .sale-card-title {
+  font-size: 15px;
   font-weight: 700;
+  line-height: 1.35;
 }
 
 .sale-card-meta {
   display: grid;
   gap: 6px;
+  font-size: 13px;
+}
+
+.sale-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sale-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(37, 99, 235, 0.10);
+  border: 1px solid rgba(37, 99, 235, 0.18);
 }
 
 /* =========================================
@@ -2472,7 +2527,8 @@ body.theme-light .search-result-item:hover {
 
 @media (max-width: 900px) {
   .audit-details-grid,
-  .sale-modal-grid {
+  .sale-modal-grid,
+  .section-summary-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2509,6 +2565,17 @@ body.theme-light .search-result-item:hover {
   .sales-search-main,
   .sales-search-actions {
     width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .sales-history-table-wrap {
+    display: none;
+  }
+
+  .sales-history-mobile-list {
+    display: grid;
+    gap: 10px;
   }
 }
 
@@ -2810,7 +2877,7 @@ body.theme-light #tab-sales option {
 }
 
 /* =========================================
-   MODO FOCO - VENDAS COM HISTORICO OCULTO
+   MODO FOCO - VENDAS
 ========================================= */
 
 .sales-focus-banner {
@@ -2833,7 +2900,8 @@ body.theme-light #tab-sales option {
 }
 
 body.sales-focus-mode .sales-history-focus-target {
-  display: none !important;
+  display: block !important;
+  opacity: 0.96;
 }
 
 body.sales-focus-mode .sales-page-focus {
@@ -2841,13 +2909,13 @@ body.sales-focus-mode .sales-page-focus {
 }
 
 body.sales-focus-mode #tab-sales .sales-top-layout {
-  grid-template-columns: minmax(0, 1.5fr) minmax(360px, 460px);
-  min-height: calc(100vh - 40px);
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 420px);
+  min-height: auto;
 }
 
 body.sales-focus-mode #tab-sales .sales-main-panel,
 body.sales-focus-mode #tab-sales .sales-summary-panel {
-  min-height: calc(100vh - 40px);
+  min-height: auto;
 }
 
 body.sales-focus-mode #tab-sales .sales-results-panel {
@@ -2944,7 +3012,6 @@ body.theme-light .section-summary-item {
    CORRECAO - DUPLICIDADE DO BOTAO DE MENU
 ========================================= */
 
-/* Desktop: mostra o botao de recolher sidebar e esconde o botao mobile */
 @media (min-width: 921px) {
   .topbar .mobile-only-inline {
     display: none !important;
@@ -2955,7 +3022,6 @@ body.theme-light .section-summary-item {
   }
 }
 
-/* Mobile / tablet: mostra apenas o botao mobile da topbar */
 @media (max-width: 920px) {
   .topbar .mobile-only-inline {
     display: inline-flex !important;
@@ -2968,313 +3034,3 @@ body.theme-light .section-summary-item {
     display: none !important;
   }
 }
-
-/* =========================================
-   PDV - BUSCA E CARRINHO
-========================================= */
-
-.is-primary-result {
-  border-color: rgba(37, 99, 235, 0.35);
-  background: rgba(37, 99, 235, 0.08);
-}
-
-.sales-cart-item {
-  transition: transform 0.16s ease, border-color 0.16s ease;
-}
-
-.sales-cart-item:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.14);
-}
-
-.sales-cart-total {
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.sales-cart-qty .icon-action-btn {
-  min-width: 38px;
-  min-height: 38px;
-  font-size: 18px;
-}
-
-.sales-cart-remove-btn {
-  border-color: rgba(231, 76, 60, 0.24);
-}
-
-/* =========================================
-   PDV - BUSCA E CARRINHO
-========================================= */
-
-.is-primary-result {
-  border-color: rgba(37, 99, 235, 0.35);
-  background: rgba(37, 99, 235, 0.08);
-}
-
-.sales-cart-item {
-  transition: transform 0.16s ease, border-color 0.16s ease;
-}
-
-.sales-cart-item:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.14);
-}
-
-.sales-cart-total {
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.sales-cart-qty .icon-action-btn {
-  min-width: 38px;
-  min-height: 38px;
-  font-size: 18px;
-}
-
-.sales-cart-remove-btn {
-  border-color: rgba(231, 76, 60, 0.24);
-}
-
-
-/* =========================================
-   CLIENTE SELECIONADO
-========================================= */
-
-.sales-selected-client-box {
-  margin-bottom: 12px;
-  border: 1px solid rgba(37, 99, 235, 0.22);
-  border-radius: 14px;
-  padding: 12px 14px;
-  background: rgba(37, 99, 235, 0.08);
-  display: grid;
-  gap: 4px;
-}
-
-.sales-selected-client-box strong {
-  font-size: 15px;
-}
-
-.sales-selected-client-box span {
-  font-size: 13px;
-  opacity: 0.86;
-}
-
-/* =========================================
-   FINALIZACAO PDV
-========================================= */
-
-.sales-total-box {
-  border: 1px solid rgba(37, 99, 235, 0.18);
-}
-
-.sales-total-highlight {
-  background: rgba(37, 99, 235, 0.08);
-  border-radius: 14px;
-  padding: 14px 12px;
-  border-top: 0;
-}
-
-.sales-total-highlight strong {
-  font-size: 28px;
-}
-
-.sales-change-strong {
-  color: #7ee7a8;
-  font-size: 20px;
-}
-
-#finish-sale-btn {
-  min-height: 52px;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-/* =========================================
-   HISTORICO MOBILE PDV
-========================================= */
-
-.sales-history-mobile-list {
-  display: none;
-}
-
-.sales-history-sale-card {
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px;
-  display: grid;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.sale-card-title {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.sale-card-meta {
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-}
-
-.sale-card-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.sale-status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  background: rgba(37, 99, 235, 0.10);
-  border: 1px solid rgba(37, 99, 235, 0.18);
-}
-
-@media (max-width: 768px) {
-  .sales-history-table-wrap {
-    display: none;
-  }
-
-  .sales-history-mobile-list {
-    display: grid;
-    gap: 10px;
-  }
-}
-
-/* =========================================
-   PDV - BUSCA, CARRINHO, CLIENTE E FINALIZACAO
-========================================= */
-
-.is-primary-result {
-  border-color: rgba(37, 99, 235, 0.35);
-  background: rgba(37, 99, 235, 0.08);
-}
-
-.sales-cart-item {
-  transition: transform 0.16s ease, border-color 0.16s ease;
-}
-
-.sales-cart-item:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.14);
-}
-
-.sales-cart-total {
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.sales-cart-qty .icon-action-btn {
-  min-width: 38px;
-  min-height: 38px;
-  font-size: 18px;
-}
-
-.sales-cart-remove-btn {
-  border-color: rgba(231, 76, 60, 0.24);
-}
-
-.sales-selected-client-box {
-  margin-bottom: 12px;
-  border: 1px solid rgba(37, 99, 235, 0.22);
-  border-radius: 14px;
-  padding: 12px 14px;
-  background: rgba(37, 99, 235, 0.08);
-  display: grid;
-  gap: 4px;
-}
-
-.sales-selected-client-box strong {
-  font-size: 15px;
-}
-
-.sales-selected-client-box span {
-  font-size: 13px;
-  opacity: 0.86;
-}
-
-.sales-total-box {
-  border: 1px solid rgba(37, 99, 235, 0.18);
-}
-
-.sales-total-highlight {
-  background: rgba(37, 99, 235, 0.08);
-  border-radius: 14px;
-  padding: 14px 12px;
-  border-top: 0;
-}
-
-.sales-total-highlight strong {
-  font-size: 28px;
-}
-
-.sales-change-strong {
-  color: #7ee7a8;
-  font-size: 20px;
-}
-
-#finish-sale-btn {
-  min-height: 52px;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-/* =========================================
-   HISTORICO MOBILE PDV
-========================================= */
-
-.sales-history-mobile-list {
-  display: none;
-}
-
-.sales-history-sale-card {
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px;
-  display: grid;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.sale-card-title {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.sale-card-meta {
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-}
-
-.sale-card-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.sale-status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  background: rgba(37, 99, 235, 0.10);
-  border: 1px solid rgba(37, 99, 235, 0.18);
-}
-
-@media (max-width: 768px) {
-  .sales-history-table-wrap {
-    display: none;
-  }
-
-  .sales-history-mobile-list {
-    display: grid;
-    gap: 10px;
-  }
-}
-
