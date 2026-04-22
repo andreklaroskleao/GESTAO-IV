@@ -2886,3 +2886,56 @@ body.sales-focus-mode #tab-sales .sales-payment-box {
     min-height: auto;
   }
 }
+
+/* =========================================
+   RESUMOS SUPERIORES DAS ABAS
+========================================= */
+
+.section-summary-card {
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.section-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.section-summary-item {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  display: grid;
+  gap: 6px;
+}
+
+body.theme-light .section-summary-item {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.section-summary-item span {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.section-summary-item strong {
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+@media (max-width: 900px) {
+  .section-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .section-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
