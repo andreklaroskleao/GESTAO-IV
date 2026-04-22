@@ -25,6 +25,7 @@ export function createSalesModule(ctx) {
   let isFinishingSale = false;
   let searchTerm = '';
   let productSearchDebounce = null;
+  let productSearchIndex = [];
 
   let saleFormState = {
     customerName: '',
@@ -55,6 +56,30 @@ export function createSalesModule(ctx) {
     return (state.products || []).filter((item) =>
       item.deleted !== true && item.status !== 'inativo'
     );
+  }
+
+  function rebuildProductSearchIndex() {
+    productSearchIndex = getActiveProducts().map((product) => ({
+      ref: product,
+      searchable: [
+        product.name,
+        product.barcode,
+        product.brand,
+        product.supplier
+      ]
+        .map((value) => String(value || '').toLowerCase())
+        .join(' ')
+    }));
+  }
+
+  function invalidateProductSearchIndex() {
+    productSearchIndex = [];
+  }
+
+  function ensureProductSearchIndex() {
+    if (!productSearchIndex.length) {
+      rebuildProductSearchIndex();
+    }
   }
 
   function getProductById(productId) {
@@ -355,24 +380,15 @@ export function createSalesModule(ctx) {
     const normalized = String(term || '').trim().toLowerCase();
     if (!normalized) return [];
 
-    const products = getActiveProducts();
+    ensureProductSearchIndex();
+
     const results = [];
 
-    for (let i = 0; i < products.length; i += 1) {
-      const product = products[i];
+    for (let i = 0; i < productSearchIndex.length; i += 1) {
+      const item = productSearchIndex[i];
 
-      const name = String(product.name || '').toLowerCase();
-      const barcode = String(product.barcode || '').toLowerCase();
-      const brand = String(product.brand || '').toLowerCase();
-      const supplier = String(product.supplier || '').toLowerCase();
-
-      if (
-        name.includes(normalized) ||
-        barcode.includes(normalized) ||
-        brand.includes(normalized) ||
-        supplier.includes(normalized)
-      ) {
-        results.push(product);
+      if (item.searchable.includes(normalized)) {
+        results.push(item.ref);
         if (results.length >= 8) break;
       }
     }
@@ -397,7 +413,7 @@ export function createSalesModule(ctx) {
       return;
     }
 
-    const isBarcodeSearch = /^[0-9A-Za-z._/\\-]+$/.test(normalized) && normalized.length >= 3;
+    const isBarcodeSearch = /^[0-9A-Za-z]+$/.test(normalized) && normalized.length >= 3;
 
     if (!isBarcodeSearch && normalized.length < 2) {
       resultsEl.innerHTML = `
@@ -433,10 +449,6 @@ export function createSalesModule(ctx) {
         <span>Refine sua pesquisa.</span>
       </div>
     `;
-
-    resultsEl.querySelectorAll('[data-add-product]').forEach((btn) => {
-      btn.addEventListener('click', () => addProductToCart(btn.dataset.addProduct));
-    });
   }
 
   function renderCart() {
@@ -480,22 +492,6 @@ export function createSalesModule(ctx) {
         </div>
       </div>
     `).join('');
-
-    cartEl.querySelectorAll('[data-cart-decrease]').forEach((btn) => {
-      btn.addEventListener('click', () => changeCartQuantity(btn.dataset.cartDecrease, -1));
-    });
-
-    cartEl.querySelectorAll('[data-cart-increase]').forEach((btn) => {
-      btn.addEventListener('click', () => changeCartQuantity(btn.dataset.cartIncrease, 1));
-    });
-
-    cartEl.querySelectorAll('[data-cart-remove]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        syncSaleFormStateFromDom();
-        state.cart = state.cart.filter((item) => item.id !== btn.dataset.cartRemove);
-        render();
-      });
-    });
   }
 
   function cloneSaleItems(items = []) {
@@ -564,6 +560,8 @@ export function createSalesModule(ctx) {
         quantity: nextStock
       });
     }
+
+    invalidateProductSearchIndex();
   }
 
   function openSaleDetailsModal(saleId) {
@@ -975,6 +973,7 @@ export function createSalesModule(ctx) {
 
         showToast('Venda atualizada com sucesso.', 'success');
         closeModal();
+        render();
       } catch (error) {
         alert(error.message || 'Não foi possível atualizar a venda.');
       }
@@ -994,6 +993,8 @@ export function createSalesModule(ctx) {
         quantity: Number(product.quantity || 0) + Number(item.quantity || 0)
       });
     }
+
+    invalidateProductSearchIndex();
   }
 
   function openDeleteSaleModal(saleId) {
@@ -1145,7 +1146,9 @@ export function createSalesModule(ctx) {
         </div>
       `;
     }
+  }
 
+  function bindHistoryActions() {
     tabEls.sales.querySelectorAll('[data-view-sale]').forEach((btn) => {
       btn.addEventListener('click', () => openSaleDetailsModal(btn.dataset.viewSale));
     });
@@ -1259,6 +1262,8 @@ export function createSalesModule(ctx) {
           quantity: Math.max(0, Number(product.quantity || 0) - Number(item.quantity || 0))
         });
       }
+
+      invalidateProductSearchIndex();
 
       printModule.printSaleReceipt({
         ...payload,
@@ -1457,7 +1462,40 @@ export function createSalesModule(ctx) {
     renderClientPickerContent();
   }
 
+  function bindCartAndSearchActions() {
+    const searchResultsHost = tabEls.sales.querySelector('#sale-search-results');
+    searchResultsHost?.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-add-product]');
+      if (!target) return;
+      addProductToCart(target.dataset.addProduct);
+    });
+
+    const cartHost = tabEls.sales.querySelector('#sale-cart-items');
+    cartHost?.addEventListener('click', (event) => {
+      const decreaseBtn = event.target.closest('[data-cart-decrease]');
+      if (decreaseBtn) {
+        changeCartQuantity(decreaseBtn.dataset.cartDecrease, -1);
+        return;
+      }
+
+      const increaseBtn = event.target.closest('[data-cart-increase]');
+      if (increaseBtn) {
+        changeCartQuantity(increaseBtn.dataset.cartIncrease, 1);
+        return;
+      }
+
+      const removeBtn = event.target.closest('[data-cart-remove]');
+      if (removeBtn) {
+        syncSaleFormStateFromDom();
+        state.cart = state.cart.filter((item) => item.id !== removeBtn.dataset.cartRemove);
+        render();
+      }
+    });
+  }
+
   function render() {
+    invalidateProductSearchIndex();
+
     if (loadSalesFocusMode()) {
       document.body.classList.add('sales-focus-mode');
     }
@@ -1645,7 +1683,7 @@ export function createSalesModule(ctx) {
       productSearchDebounce = setTimeout(() => {
         searchTerm = nextValue;
         renderSearchResults();
-      }, 180);
+      }, 220);
     });
 
     searchInput?.addEventListener('keydown', (event) => {
@@ -1772,6 +1810,7 @@ export function createSalesModule(ctx) {
       saleFilters.dateFrom = tabEls.sales.querySelector('#sales-filter-date-from')?.value || '';
       saleFilters.dateTo = tabEls.sales.querySelector('#sales-filter-date-to')?.value || '';
       renderHistory();
+      bindHistoryActions();
     });
 
     bindAsyncButton(tabEls.sales.querySelector('#sales-filter-clear'), async () => {
@@ -1782,6 +1821,8 @@ export function createSalesModule(ctx) {
     renderSearchResults();
     renderCart();
     renderHistory();
+    bindCartAndSearchActions();
+    bindHistoryActions();
     updateSaleSummary();
     bindCpfToggle();
     bindKeyboardShortcuts();
