@@ -1387,7 +1387,7 @@ export function createSalesModule(ctx) {
                 <strong>Cliente</strong>
                 <div class="form-actions">
                   <button class="btn btn-secondary" type="button" id="sale-select-client-btn">Selecionar cliente</button>
-                  <button class="btn btn-secondary" type="button" id="sale-set-final-consumer-btn">Consumidor final</button>
+                  <button class="btn btn-secondary" type="button" id="sale-set-final-consumer-btn">Venda sem cliente</button>
                   <button class="btn btn-secondary" type="button" id="sale-clear-client-btn">Limpar cliente</button>
                 </div>
               </div>
@@ -1590,7 +1590,7 @@ export function createSalesModule(ctx) {
 
     bindAsyncButton(tabEls.sales.querySelector('#sale-set-final-consumer-btn'), async () => {
       state.selectedSaleClient = null;
-      saleFormState.customerName = 'Consumidor final';
+      saleFormState.customerName = '';
       saleFormState.includeCpf = false;
       saleFormState.customerCpf = '';
       render();
