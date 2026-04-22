@@ -1,3 +1,5 @@
+Segue o assets/js/modules/sales.js completo, com o modo foco / tela cheia da venda, mantendo a compatibilidade com a estrutura que já vínhamos ajustando:
+
 import { escapeHtml, showToast, bindAsyncButton } from './ui.js';
 
 export function createSalesModule(ctx) {
@@ -170,6 +172,95 @@ export function createSalesModule(ctx) {
 
   function getSaleVersion(sale) {
     return Number(sale?.version || 0);
+  }
+
+  function isSalesFocusMode() {
+    return document.body.classList.contains('sales-focus-mode');
+  }
+
+  function isBrowserFullscreen() {
+    return Boolean(document.fullscreenElement);
+  }
+
+  function setSalesFocusMode(enabled) {
+    document.body.classList.toggle('sales-focus-mode', Boolean(enabled));
+
+    try {
+      localStorage.setItem('sales_focus_mode', enabled ? '1' : '0');
+    } catch (error) {
+      console.warn('Nao foi possivel salvar o modo foco da venda.', error);
+    }
+  }
+
+  function loadSalesFocusMode() {
+    try {
+      return localStorage.getItem('sales_focus_mode') === '1';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async function enterSalesFullscreen() {
+    const root = document.documentElement || document.body;
+
+    try {
+      if (!document.fullscreenElement && root?.requestFullscreen) {
+        await root.requestFullscreen();
+      }
+    } catch (error) {
+      console.warn('Nao foi possivel entrar em fullscreen.', error);
+    }
+  }
+
+  async function exitSalesFullscreen() {
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.warn('Nao foi possivel sair do fullscreen.', error);
+    }
+  }
+
+  async function enableSalesFocusMode() {
+    setSalesFocusMode(true);
+    await enterSalesFullscreen();
+  }
+
+  async function disableSalesFocusMode() {
+    await exitSalesFullscreen();
+    setSalesFocusMode(false);
+  }
+
+  async function toggleSalesFocusMode() {
+    const next = !isSalesFocusMode();
+
+    if (next) {
+      await enableSalesFocusMode();
+    } else {
+      await disableSalesFocusMode();
+    }
+
+    render();
+    if (next) {
+      setTimeout(() => {
+        focusSearchInput();
+      }, 80);
+    }
+  }
+
+  function bindSalesFocusFullscreenSync() {
+    if (window.__salesFocusFullscreenBound === true) return;
+    window.__salesFocusFullscreenBound = true;
+
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && isSalesFocusMode()) {
+        setSalesFocusMode(false);
+        if (tabEls.sales?.classList.contains('active')) {
+          render();
+        }
+      }
+    });
   }
 
   function addProductToCart(productId) {
@@ -1186,10 +1277,14 @@ export function createSalesModule(ctx) {
   }
 
   function render() {
+    if (loadSalesFocusMode()) {
+      document.body.classList.add('sales-focus-mode');
+    }
+
     const { subtotal, discount, total, change, amountPaid } = calculateCartTotal();
 
     tabEls.sales.innerHTML = `
-      <div class="section-stack sales-page">
+      <div class="section-stack sales-page ${isSalesFocusMode() ? 'sales-page-focus' : ''}">
         <div class="sales-top-layout">
           <div class="sales-main-panel">
             <div class="sales-panel-header">
@@ -1197,7 +1292,24 @@ export function createSalesModule(ctx) {
                 <h2>Nova venda</h2>
                 <span>Pesquise por nome ou código de barras</span>
               </div>
+
+              <div class="form-actions">
+                <button
+                  class="btn btn-secondary"
+                  type="button"
+                  id="toggle-sales-focus-btn"
+                >
+                  ${isSalesFocusMode() ? 'Sair da tela cheia' : 'Expandir venda'}
+                </button>
+              </div>
             </div>
+
+            ${isSalesFocusMode() ? `
+              <div class="sales-focus-banner">
+                <strong>Modo foco ativo</strong>
+                <span>Histórico oculto para operação rápida de vendas.</span>
+              </div>
+            ` : ''}
 
             <div class="sales-search-box">
               <input
@@ -1295,7 +1407,7 @@ export function createSalesModule(ctx) {
           </div>
         </div>
 
-        <div class="table-card sales-history-card">
+        <div class="table-card sales-history-card sales-history-focus-target">
           <div class="section-header">
             <h2>Histórico de vendas</h2>
           </div>
@@ -1413,6 +1525,16 @@ export function createSalesModule(ctx) {
       clearCartWithFeedback();
     }, { busyLabel: 'Limpando...' });
 
+    bindAsyncButton(
+      tabEls.sales.querySelector('#toggle-sales-focus-btn'),
+      async () => {
+        await toggleSalesFocusMode();
+      },
+      {
+        busyLabel: isSalesFocusMode() ? 'Saindo...' : 'Abrindo...'
+      }
+    );
+
     tabEls.sales.querySelector('#sales-filter-apply')?.addEventListener('click', () => {
       saleFilters.customer = tabEls.sales.querySelector('#sales-filter-customer')?.value || '';
       saleFilters.paymentMethod = tabEls.sales.querySelector('#sales-filter-payment')?.value || '';
@@ -1432,6 +1554,11 @@ export function createSalesModule(ctx) {
     updateSaleSummary();
     bindCpfToggle();
     bindKeyboardShortcuts();
+    bindSalesFocusFullscreenSync();
+
+    if (loadSalesFocusMode() && !isSalesFocusMode()) {
+      setSalesFocusMode(true);
+    }
   }
 
   return {
