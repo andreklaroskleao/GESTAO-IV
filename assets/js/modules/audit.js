@@ -185,7 +185,7 @@ export function createAuditModule(ctx) {
 
     return `
       <div class="table-wrap scroll-dual">
-        <table>
+        <table class="audit-changes-table">
           <thead>
             <tr>
               <th>Campo</th>
@@ -197,10 +197,10 @@ export function createAuditModule(ctx) {
           <tbody>
             ${changes.map((change) => `
               <tr>
-                <td>${escapeHtml(stringifyValue(change.field))}</td>
-                <td>${escapeHtml(stringifyValue(change.label))}</td>
-                <td>${escapeHtml(stringifyValue(change.from))}</td>
-                <td>${escapeHtml(stringifyValue(change.to))}</td>
+                <td class="audit-field-name">${escapeHtml(stringifyValue(change.field))}</td>
+                <td class="audit-field-label">${escapeHtml(stringifyValue(change.label))}</td>
+                <td class="audit-old-value">${escapeHtml(stringifyValue(change.from))}</td>
+                <td class="audit-new-value">${escapeHtml(stringifyValue(change.to))}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -227,39 +227,39 @@ export function createAuditModule(ctx) {
             <button class="btn btn-secondary" type="button" id="audit-details-close-btn">Fechar</button>
           </div>
 
-          <div class="filters-grid">
-            <div><strong>Data</strong><br>${escapeHtml(formatDateTime(row.createdAt))}</div>
-            <div><strong>Módulo</strong><br>${escapeHtml(row.module || '-')}</div>
-            <div><strong>Ação</strong><br>${escapeHtml(getActionLabel(row.action))}</div>
-            <div><strong>Tipo</strong><br>${escapeHtml(row.entityType || '-')}</div>
-            <div><strong>Entidade</strong><br>${escapeHtml(row.entityLabel || row.entityId || '-')}</div>
-            <div><strong>Usuário</strong><br>${escapeHtml(row.userName || row.userEmail || row.userId || '-')}</div>
+          <div class="audit-details-grid">
+            <div class="audit-details-card"><strong>Data</strong><span>${escapeHtml(formatDateTime(row.createdAt))}</span></div>
+            <div class="audit-details-card"><strong>Módulo</strong><span>${escapeHtml(row.module || '-')}</span></div>
+            <div class="audit-details-card"><strong>Ação</strong><span>${escapeHtml(getActionLabel(row.action))}</span></div>
+            <div class="audit-details-card"><strong>Tipo</strong><span>${escapeHtml(row.entityType || '-')}</span></div>
+            <div class="audit-details-card"><strong>Entidade</strong><span>${escapeHtml(row.entityLabel || row.entityId || '-')}</span></div>
+            <div class="audit-details-card"><strong>Usuário</strong><span>${escapeHtml(row.userName || row.userEmail || row.userId || '-')}</span></div>
           </div>
 
-          <div style="margin-top:16px;">
-            <strong>Descrição</strong>
-            <div class="empty-state" style="text-align:left; margin-top:8px;">
+          <div class="audit-section-block">
+            <strong class="audit-section-title">Descrição</strong>
+            <div class="audit-empty-box">
               <span>${escapeHtml(row.description || '-')}</span>
             </div>
           </div>
 
-          <div style="margin-top:16px;">
-            <strong>Resumo técnico</strong>
-            <div class="empty-state" style="text-align:left; margin-top:8px;">
+          <div class="audit-section-block">
+            <strong class="audit-section-title">Resumo técnico</strong>
+            <div class="audit-empty-box">
               <span>${escapeHtml(summarizeMetadata(metadata))}</span>
             </div>
           </div>
 
-          <div style="margin-top:16px;">
-            <strong>Alterações detalhadas</strong>
+          <div class="audit-section-block">
+            <strong class="audit-section-title">Alterações detalhadas</strong>
             <div style="margin-top:8px;">
               ${renderChangesTable(changes)}
             </div>
           </div>
 
-          <div style="margin-top:16px;">
-            <strong>Metadados completos</strong>
-            <div class="empty-state" style="text-align:left; margin-top:8px; white-space:pre-wrap; word-break:break-word;">
+          <div class="audit-section-block">
+            <strong class="audit-section-title">Metadados completos</strong>
+            <div class="audit-empty-box audit-raw-metadata">
               <span>${escapeHtml(stringifyMetadata(metadata))}</span>
             </div>
           </div>
@@ -327,7 +327,7 @@ export function createAuditModule(ctx) {
           </thead>
           <tbody>
             ${rows.map((item) => `
-              <tr data-audit-open="${escapeHtml(item.id || '')}" style="cursor:pointer;">
+              <tr class="audit-row-clickable" data-audit-open="${escapeHtml(item.id || '')}">
                 <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
                 <td>${escapeHtml(item.module || '-')}</td>
                 <td>
@@ -335,10 +335,10 @@ export function createAuditModule(ctx) {
                     ${escapeHtml(getActionLabel(item.action))}
                   </span>
                 </td>
-                <td>${escapeHtml(item.entityLabel || item.entityId || '-')}</td>
-                <td>${escapeHtml(item.description || '-')}</td>
-                <td>${escapeHtml(item.userName || item.userEmail || item.userId || '-')}</td>
-                <td>${escapeHtml(summarizeMetadata(item.metadata))}</td>
+                <td class="audit-entity-cell">${escapeHtml(item.entityLabel || item.entityId || '-')}</td>
+                <td class="audit-description-cell">${escapeHtml(item.description || '-')}</td>
+                <td class="audit-user-cell">${escapeHtml(item.userName || item.userEmail || item.userId || '-')}</td>
+                <td class="audit-summary-text">${escapeHtml(summarizeMetadata(item.metadata))}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -389,13 +389,6 @@ export function createAuditModule(ctx) {
             }
             th {
               background: #f3f3f3;
-            }
-            .badge {
-              display: inline-block;
-              padding: 4px 8px;
-              border-radius: 999px;
-              border: 1px solid #ccc;
-              font-size: 11px;
             }
           </style>
         </head>
