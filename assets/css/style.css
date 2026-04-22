@@ -1,7 +1,3 @@
-/* =========================================
-   BASE / TEMA
-========================================= */
-
 :root {
   --bg: #0b1220;
   --bg-soft: #121b2d;
@@ -39,10 +35,6 @@ body.theme-light {
   --shadow: 0 10px 30px rgba(15, 23, 42, 0.10);
 }
 
-/* =========================================
-   RESET
-========================================= */
-
 * {
   box-sizing: border-box;
 }
@@ -62,16 +54,7 @@ body {
   color: var(--text);
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-/* =========================================
-   VISIBILIDADE DAS TELAS
-========================================= */
+/* LOGIN / APP VISIBILIDADE */
 
 .screen {
   display: none;
@@ -90,13 +73,7 @@ textarea {
   display: block;
 }
 
-.hidden {
-  display: none !important;
-}
-
-/* =========================================
-   LOGIN / AUTH
-========================================= */
+/* AUTH */
 
 .auth-shell {
   width: 100%;
@@ -148,38 +125,13 @@ textarea {
   line-height: 1.4;
 }
 
-/* =========================================
-   LAYOUT PRINCIPAL
-========================================= */
+/* APP LAYOUT */
 
 .app-shell {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
 }
-
-.main-shell {
-  min-width: 0;
-  display: grid;
-  grid-template-rows: auto 1fr;
-}
-
-.content-area {
-  padding: 18px;
-  min-width: 0;
-}
-
-.tab-panel {
-  display: none;
-}
-
-.tab-panel.active {
-  display: block;
-}
-
-/* =========================================
-   SIDEBAR
-========================================= */
 
 .sidebar {
   position: sticky;
@@ -228,12 +180,12 @@ body.theme-light .sidebar {
 
 .nav-item {
   width: 100%;
-  min-height: 44px;
-  padding: 10px 14px;
   border: 1px solid transparent;
-  border-radius: 14px;
   background: transparent;
   color: var(--text);
+  border-radius: 14px;
+  min-height: 44px;
+  padding: 10px 14px;
   text-align: left;
   cursor: pointer;
   transition: 0.18s ease;
@@ -273,9 +225,11 @@ body.theme-light .nav-item:hover {
   text-overflow: ellipsis;
 }
 
-/* =========================================
-   TOPBAR
-========================================= */
+.main-shell {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
 
 .topbar {
   position: sticky;
@@ -308,17 +262,6 @@ body.theme-light .topbar {
   justify-content: flex-end;
 }
 
-.topbar-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.topbar-search input {
-  min-width: 180px;
-}
-
 .page-heading {
   min-width: 0;
 }
@@ -334,214 +277,27 @@ body.theme-light .topbar {
   font-size: 0.92rem;
 }
 
-.user-box {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+.content-area {
+  padding: 18px;
+  min-width: 0;
 }
 
-/* =========================================
-   SIDEBAR RECOLHIDA
-========================================= */
-
-body.sidebar-collapsed .app-shell {
-  grid-template-columns: 84px minmax(0, 1fr);
-}
-
-body.sidebar-collapsed .sidebar {
-  width: 84px;
-  padding-left: 12px;
-  padding-right: 12px;
-}
-
-body.sidebar-collapsed .brand-block span,
-body.sidebar-collapsed .brand-block strong,
-body.sidebar-collapsed .nav-item-label {
+.tab-panel {
   display: none;
 }
 
-body.sidebar-collapsed .sidebar-top {
-  justify-content: center;
+.tab-panel.active {
+  display: block;
 }
 
-body.sidebar-collapsed .nav-item {
-  justify-content: center;
-  padding-left: 10px;
-  padding-right: 10px;
+/* BOTÕES / CAMPOS */
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
-
-body.sidebar-collapsed .nav-item-icon {
-  margin: 0;
-}
-
-body.sidebar-collapsed .sidebar .nav-item {
-  position: relative;
-}
-
-body.sidebar-collapsed .sidebar .nav-item:hover::after {
-  content: attr(data-tab);
-  position: absolute;
-  left: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--panel);
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 6px 10px;
-  white-space: nowrap;
-  box-shadow: var(--shadow);
-  z-index: 100;
-  pointer-events: none;
-  text-transform: capitalize;
-}
-
-/* =========================================
-   HELPERS
-========================================= */
-
-.desktop-only-inline {
-  display: inline-flex;
-}
-
-.mobile-only-inline {
-  display: none;
-}
-
-.muted {
-  color: var(--text-soft);
-}
-
-.inline-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.form-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.actions-inline-compact,
-.cart-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-/* =========================================
-   RESPONSIVO BASE / LAYOUT
-========================================= */
-
-@media (max-width: 920px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: min(84vw, 300px);
-    height: 100vh;
-    transform: translateX(-104%);
-    transition: 0.2s ease;
-    z-index: 80;
-  }
-
-  body.sidebar-open .sidebar {
-    transform: translateX(0);
-  }
-
-  .main-shell {
-    min-width: 0;
-  }
-
-  .desktop-only-inline {
-    display: none;
-  }
-
-  .mobile-only-inline {
-    display: inline-flex;
-  }
-
-  .topbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .topbar-left,
-  .topbar-right {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .topbar-right {
-    align-items: stretch;
-  }
-
-  .topbar-search {
-    width: 100%;
-  }
-
-  .topbar-search input {
-    min-width: 0;
-    width: 100%;
-  }
-
-  body.sidebar-collapsed .app-shell {
-    grid-template-columns: 1fr;
-  }
-
-  body.sidebar-collapsed .sidebar {
-    width: min(84vw, 300px);
-    padding-left: 18px;
-    padding-right: 18px;
-  }
-
-  body.sidebar-collapsed .brand-block span,
-  body.sidebar-collapsed .brand-block strong,
-  body.sidebar-collapsed .nav-item-label {
-    display: initial;
-  }
-
-  body.sidebar-collapsed .sidebar-top {
-    justify-content: space-between;
-  }
-
-  body.sidebar-collapsed .nav-item {
-    justify-content: flex-start;
-    padding-left: 14px;
-    padding-right: 14px;
-  }
-
-  body.sidebar-collapsed .sidebar .nav-item:hover::after {
-    display: none;
-  }
-}
-
-@media (max-width: 768px) {
-  .content-area {
-    padding: 14px;
-  }
-}
-
-@media (max-width: 560px) {
-  .auth-card {
-    padding: 22px 18px;
-  }
-}
-
-/* =========================================
-   CAMPOS
-========================================= */
 
 input,
 select,
@@ -578,10 +334,6 @@ textarea {
   min-height: 96px;
   resize: vertical;
 }
-
-/* =========================================
-   BOTOES
-========================================= */
 
 .btn,
 .icon-btn,
@@ -636,10 +388,6 @@ body.theme-light .btn-secondary {
   transform: none;
 }
 
-/* =========================================
-   ICON BUTTONS
-========================================= */
-
 .icon-btn {
   min-width: 40px;
   min-height: 40px;
@@ -687,9 +435,28 @@ body.theme-light .icon-action-btn {
   border-color: rgba(34, 197, 94, 0.22);
 }
 
-/* =========================================
-   BADGES / TAGS
-========================================= */
+/* TOPBAR SEARCH */
+
+.topbar-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.topbar-search input {
+  min-width: 180px;
+}
+
+/* UTILITÁRIOS */
+
+.hidden {
+  display: none !important;
+}
+
+.muted {
+  color: var(--text-soft);
+}
 
 .badge-soft {
   display: inline-flex;
@@ -702,75 +469,35 @@ body.theme-light .icon-action-btn {
   font-size: 0.82rem;
 }
 
-.badge {
+.badge-counter {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.72rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 28px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  white-space: nowrap;
+  padding: 0 5px;
 }
 
-.badge-neutral {
-  background: rgba(255, 255, 255, 0.06);
-  color: #f3f3f3;
-}
-
-.badge-success {
-  background: rgba(46, 204, 113, 0.14);
-  color: #8ff0b5;
-  border-color: rgba(46, 204, 113, 0.25);
-}
-
-.badge-warning {
-  background: rgba(241, 196, 15, 0.14);
-  color: #ffd76a;
-  border-color: rgba(241, 196, 15, 0.25);
-}
-
-.badge-danger {
-  background: rgba(231, 76, 60, 0.14);
-  color: #ff9d90;
-  border-color: rgba(231, 76, 60, 0.25);
-}
-
-.tag {
-  display: inline-flex;
+.inline-row {
+  display: flex;
   align-items: center;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  border: 1px solid transparent;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.tag.success {
-  background: rgba(34, 197, 94, 0.12);
-  border-color: rgba(34, 197, 94, 0.18);
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
-
-.tag.warning {
-  background: rgba(245, 158, 11, 0.14);
-  border-color: rgba(245, 158, 11, 0.18);
-}
-
-.tag.danger {
-  background: rgba(239, 68, 68, 0.14);
-  border-color: rgba(239, 68, 68, 0.18);
-}
-
-.tag.info {
-  background: rgba(6, 182, 212, 0.14);
-  border-color: rgba(6, 182, 212, 0.18);
-}
-
-/* =========================================
-   LAYOUTS DE SECAO
-========================================= */
 
 .section-stack {
   display: grid;
@@ -788,24 +515,6 @@ body.theme-light .icon-action-btn {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
-
-.users-layout,
-.deliveries-layout,
-.sales-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-  gap: 18px;
-}
-
-.sticky-summary {
-  align-self: start;
-  position: sticky;
-  top: 84px;
-}
-
-/* =========================================
-   CARDS / PAINEIS
-========================================= */
 
 .metric-card,
 .compact-card,
@@ -847,14 +556,8 @@ body.theme-light .icon-action-btn {
 }
 
 .summary-highlight {
-  background:
-    linear-gradient(180deg, rgba(37, 99, 235, 0.10), rgba(37, 99, 235, 0.04)),
-    linear-gradient(180deg, var(--panel), var(--panel-2));
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.10), rgba(37, 99, 235, 0.04)), linear-gradient(180deg, var(--panel), var(--panel-2));
 }
-
-/* =========================================
-   CABECALHOS DE BLOCO
-========================================= */
 
 .section-header {
   display: flex;
@@ -884,46 +587,11 @@ body.theme-light .icon-action-btn {
   justify-content: flex-end;
 }
 
-/* =========================================
-   TOOLBAR DE ENTIDADE
-========================================= */
-
-.entity-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.entity-toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.entity-toolbar .muted {
-  margin: 0;
-}
-
-/* =========================================
-   CAMPOS DE BUSCA / FILTRO
-========================================= */
-
-.search-row,
-.filters-grid {
+.search-row {
   display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
   align-items: stretch;
-}
-
-.search-row {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-
-.filters-grid {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .search-row > input,
@@ -932,17 +600,6 @@ body.theme-light .icon-action-btn {
 .search-row > button {
   min-height: 42px;
 }
-
-.input-with-action {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-}
-
-/* =========================================
-   FORMULARIOS
-========================================= */
 
 .form-grid {
   display: grid;
@@ -984,31 +641,18 @@ body.theme-light .form-section {
   font-size: 0.88rem;
 }
 
-.form-modal-card {
-  width: min(96vw, 880px);
-  max-width: min(96vw, 880px);
-  max-height: 90vh;
-  overflow: auto;
-}
-
-.form-modal-body {
-  display: grid;
-  gap: 16px;
-}
-
-.form-modal-body .form-grid {
-  margin-top: 0;
-}
-
-/* =========================================
-   DIVISORES / AJUDA
-========================================= */
-
 .soft-divider,
 .subtle-divider {
   height: 1px;
   background: var(--line);
   margin: 10px 0 12px;
+}
+
+.input-with-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
 }
 
 .mini-help {
@@ -1019,9 +663,101 @@ body.theme-light .form-section {
   margin-top: 6px;
 }
 
-/* =========================================
-   ESTADO VAZIO / BLOQUEADO
-========================================= */
+.users-layout,
+.deliveries-layout,
+.sales-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.sticky-summary {
+  align-self: start;
+  position: sticky;
+  top: 84px;
+}
+
+/* TABELAS */
+
+.table-wrap,
+.sales-history-table-wrap,
+.audit-table-scroll,
+.standard-scroll-x {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.standard-scroll-y {
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.audit-table {
+  min-width: 980px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+thead th {
+  color: var(--text-soft);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+body.theme-light tbody tr:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* LISTAS / VAZIO */
+
+.stack-list {
+  display: grid;
+  gap: 10px;
+}
+
+.slim-list {
+  gap: 8px;
+}
+
+.list-item {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+body.theme-light .list-item {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.list-item strong,
+.list-item span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 
 .empty-state {
   border: 1px dashed var(--line);
@@ -1056,437 +792,81 @@ body.theme-light .empty-state {
   font-size: 2rem;
 }
 
-/* =========================================
-   LISTAS
-========================================= */
+/* TAGS */
 
-.stack-list {
-  display: grid;
-  gap: 10px;
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  border: 1px solid transparent;
 }
 
-.slim-list {
-  gap: 8px;
+.tag.success {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.18);
 }
 
-.list-item {
+.tag.warning {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.18);
+}
+
+.tag.danger {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.18);
+}
+
+.tag.info {
+  background: rgba(6, 182, 212, 0.14);
+  border-color: rgba(6, 182, 212, 0.18);
+}
+
+/* ALERTAS */
+
+.alerts-wrapper {
+  position: relative;
+}
+
+.alerts-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(92vw, 360px);
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 14px;
+  z-index: 60;
+}
+
+.alert-item {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.02);
   border-radius: 14px;
   padding: 12px;
   display: grid;
   gap: 6px;
-  min-width: 0;
 }
 
-body.theme-light .list-item {
+body.theme-light .alert-item {
   background: rgba(0, 0, 0, 0.015);
 }
 
-.list-item strong,
-.list-item span {
-  min-width: 0;
-  overflow-wrap: anywhere;
+/* USER */
+
+.user-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-/* =========================================
-   RESPONSIVO COMPONENTES BASE
-========================================= */
-
-@media (max-width: 1200px) {
-  .cards-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .grid-2,
-  .users-layout,
-  .deliveries-layout,
-  .sales-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .sticky-summary {
-    position: static;
-    top: auto;
-  }
-}
-
-@media (max-width: 768px) {
-  .cards-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .form-grid,
-  .search-row,
-  .filters-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .section-header-side {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .entity-toolbar {
-    align-items: stretch;
-  }
-
-  .entity-toolbar-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .form-modal-card {
-    width: min(96vw, 96vw);
-    max-width: min(96vw, 96vw);
-  }
-}
-
-@media (max-width: 560px) {
-  .cards-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .panel,
-  .table-card,
-  .card,
-  .metric-card {
-    padding: 14px;
-  }
-}
-
-/* =========================================
-   TABELAS BASE
-========================================= */
-
-table {
-  width: 100%;
-  min-width: 760px;
-  border-collapse: collapse;
-}
-
-.audit-table {
-  min-width: 980px;
-}
-
-th,
-td {
-  text-align: left;
-  padding: 12px 10px;
-  border-bottom: 1px solid var(--line);
-  vertical-align: top;
-}
-
-thead th {
-  color: var(--text-soft);
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-body.theme-light tbody tr:hover {
-  background: rgba(0, 0, 0, 0.02);
-}
-
-/* =========================================
-   WRAPPERS DE SCROLL
-========================================= */
-
-.table-wrap,
-.sales-history-table-wrap,
-.audit-table-scroll,
-.standard-scroll-x,
-.scroll-dual {
-  width: 100%;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.standard-scroll-y {
-  max-height: 420px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-}
-
-.panel-scroll,
-.list-scroll,
-.dashboard-list-scroll,
-.card-scroll-y,
-.stack-list.list-scroll {
-  max-height: min(52vh, 400px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  min-width: 0;
-  padding-right: 4px;
-}
-
-.card-scroll-x {
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* =========================================
-   ALTURAS PADRAO DE TABELA
-========================================= */
-
-.table-card .table-wrap,
-.table-card .sales-history-table-wrap,
-.table-card .audit-table-scroll,
-.table-card .standard-scroll-x,
-.table-card .scroll-dual {
-  max-height: min(58vh, 460px);
-}
-
-/* =========================================
-   LARGURA MINIMA PARA NAO QUEBRAR TABELA
-========================================= */
-
-.table-wrap table,
-.sales-history-table-wrap table,
-.audit-table-scroll table,
-.standard-scroll-x table,
-.scroll-dual table {
-  min-width: 760px;
-}
-
-.audit-table-scroll table.audit-table,
-.scroll-dual table.audit-table {
-  min-width: 980px;
-}
-
-/* =========================================
-   SEGURANCA DE QUEBRA DE CONTEUDO
-========================================= */
-
-.table-card,
-.panel,
-.card,
-.metric-card,
-.compact-card {
-  min-width: 0;
-}
-
-.table-card .section-header,
-.panel .section-header,
-.card .section-header {
-  min-width: 0;
-}
-
-.table-card .section-header h2,
-.panel .section-header h2,
-.card .section-header h2,
-.table-card .section-header h3,
-.panel .section-header h3,
-.card .section-header h3 {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.list-item,
-.sale-item-card,
-.cart-item,
-.sale-details-box,
-.compact-card,
-.metric-card {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.dashboard-list-scroll .list-item,
-.list-scroll .list-item {
-  margin-right: 2px;
-}
-
-/* =========================================
-   TABELAS EM CARDS
-========================================= */
-
-.table-card .table-wrap table,
-.table-card .sales-history-table-wrap table,
-.table-card .audit-table-scroll table,
-.table-card .scroll-dual table {
-  width: 100%;
-}
-
-/* =========================================
-   AJUSTES POR ABA
-========================================= */
-
-#tab-products .table-wrap,
-#tab-products .scroll-dual,
-#tab-clients .table-wrap,
-#tab-clients .scroll-dual,
-#tab-suppliers .table-wrap,
-#tab-suppliers .scroll-dual,
-#tab-purchases .table-wrap,
-#tab-purchases .scroll-dual,
-#tab-payables .table-wrap,
-#tab-payables .scroll-dual {
-  max-height: min(58vh, 440px);
-}
-
-#tab-products .table-wrap,
-#tab-products .scroll-dual {
-  max-height: min(58vh, 460px);
-}
-
-#tab-users .table-wrap,
-#tab-users .scroll-dual,
-#tab-reports .table-wrap,
-#tab-reports .scroll-dual {
-  max-height: min(58vh, 420px);
-}
-
-#tab-dashboard .dashboard-list-scroll,
-#tab-dashboard .list-scroll {
-  max-height: min(46vh, 320px);
-}
-
-#tab-settings .settings-audit-scroll {
-  max-height: min(58vh, 460px);
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  width: 100%;
-}
-
-#tab-settings .settings-audit-scroll > * {
-  min-width: 100%;
-}
-
-#tab-settings .settings-audit-scroll table {
-  min-width: 980px;
-  width: max-content;
-}
-
-#tab-settings .settings-audit-scroll .table-wrap,
-#tab-settings .settings-audit-scroll .audit-table-scroll,
-#tab-settings .settings-audit-scroll .scroll-dual {
-  max-height: none !important;
-  overflow: visible !important;
-}
-
-#tab-settings .settings-audit-host {
-  position: relative;
-}
-
-#tab-settings .settings-financial-scroll {
-  max-height: min(52vh, 360px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-}
-
-#tab-settings .settings-cash-history-scroll {
-  max-height: min(58vh, 420px);
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* =========================================
-   TABELAS E SCROLL NO MOBILE
-========================================= */
-
-@media (max-width: 920px) {
-  .dashboard-card-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .table-card .table-wrap,
-  .table-card .sales-history-table-wrap,
-  .table-card .audit-table-scroll,
-  .table-card .standard-scroll-x,
-  .table-card .scroll-dual {
-    max-height: min(54vh, 380px);
-  }
-
-  .panel-scroll,
-  .list-scroll,
-  .dashboard-list-scroll,
-  .card-scroll-y {
-    max-height: min(44vh, 320px);
-  }
-}
-
-@media (max-width: 768px) {
-  table {
-    min-width: 640px;
-  }
-
-  .table-wrap table,
-  .sales-history-table-wrap table,
-  .audit-table-scroll table,
-  .standard-scroll-x table,
-  .scroll-dual table {
-    min-width: 640px;
-  }
-
-  .table-card .table-wrap,
-  .table-card .sales-history-table-wrap,
-  .table-card .audit-table-scroll,
-  .table-card .standard-scroll-x,
-  .table-card .scroll-dual {
-    max-height: min(50vh, 340px);
-  }
-
-  .panel-scroll,
-  .list-scroll,
-  .dashboard-list-scroll,
-  .card-scroll-y {
-    max-height: min(40vh, 280px);
-  }
-
-  #tab-settings .settings-audit-scroll,
-  #tab-settings .settings-cash-history-scroll {
-    max-height: min(50vh, 340px);
-  }
-
-  #tab-settings .settings-financial-scroll {
-    max-height: min(42vh, 280px);
-  }
-
-  #tab-settings .settings-audit-scroll table {
-    min-width: 860px;
-  }
-}
-
-@media (max-width: 560px) {
-  table {
-    min-width: 600px;
-  }
-
-  .table-wrap table,
-  .sales-history-table-wrap table,
-  .audit-table-scroll table,
-  .standard-scroll-x table,
-  .scroll-dual table {
-    min-width: 600px;
-  }
-
-  .table-card .table-wrap,
-  .table-card .sales-history-table-wrap,
-  .table-card .audit-table-scroll,
-  .table-card .standard-scroll-x,
-  .table-card .scroll-dual {
-    max-height: min(46vh, 300px);
-  }
-
-  .panel-scroll,
-  .list-scroll,
-  .dashboard-list-scroll,
-  .card-scroll-y {
-    max-height: min(36vh, 240px);
-  }
-}
-
-/* =========================================
-   MODAIS / OVERLAYS
-========================================= */
+/* MODAIS */
 
 .modal-backdrop,
 .actions-sheet-backdrop {
@@ -1522,15 +902,6 @@ body.theme-light tbody tr:hover {
   max-width: min(96vw, 900px);
 }
 
-.confirm-delete-modal {
-  width: min(92vw, 460px);
-  max-width: min(92vw, 460px);
-}
-
-/* =========================================
-   ACTIONS SHEET
-========================================= */
-
 .actions-sheet {
   width: min(96vw, 420px);
 }
@@ -1552,9 +923,10 @@ body.theme-light tbody tr:hover {
   gap: 10px;
 }
 
-/* =========================================
-   COMPONENTES DE VENDA GENERICOS
-========================================= */
+.confirm-delete-modal {
+  width: min(92vw, 460px);
+  max-width: min(92vw, 460px);
+}
 
 .sale-details-grid {
   display: grid;
@@ -1597,92 +969,223 @@ body.theme-light .sale-details-box {
   gap: 6px;
 }
 
-/* =========================================
-   ALERTAS / NOTIFICACOES FLUTUANTES
-========================================= */
-
-.alerts-wrapper {
-  position: relative;
+.scanner-card {
+  display: grid;
+  gap: 10px;
 }
 
-.alerts-panel {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: min(92vw, 360px);
-  max-height: 60vh;
-  overflow-y: auto;
-  border: 1px solid var(--line);
-  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+.video-preview {
+  width: 100%;
+  min-height: 220px;
+  max-height: 52vh;
+  object-fit: cover;
   border-radius: 16px;
-  box-shadow: var(--shadow);
-  padding: 14px;
-  z-index: 60;
+  border: 1px solid var(--line);
+  background: #000;
 }
 
-.alert-item {
+/* VENDAS */
+
+.cart-list {
+  display: grid;
+  gap: 10px;
+}
+
+.cart-item {
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.02);
   border-radius: 14px;
   padding: 12px;
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
-body.theme-light .alert-item {
+body.theme-light .cart-item {
   background: rgba(0, 0, 0, 0.015);
 }
 
-/* =========================================
-   BADGE DE NOTIFICACAO
-========================================= */
-
-#notifications-bell-btn {
-  position: relative;
-}
-
-#notifications-badge,
-.badge-counter {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: #dc2626;
-  color: #fff;
-  font-size: 11px;
-  line-height: 18px;
-  text-align: center;
-}
-
-.notifications-modal-card {
-  width: min(96vw, 1100px);
-  max-width: min(96vw, 1100px);
-  max-height: 90vh;
-  overflow: hidden;
-}
-
-.notification-row {
-  gap: 8px;
-}
-
-.notification-row-top {
+.cart-line {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.cart-actions,
+.actions-inline-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.notification-row.is-read {
-  opacity: 0.78;
+.summary-box {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
-/* =========================================
-   TOAST
-========================================= */
+body.theme-light .summary-box {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.summary-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summary-line.total {
+  font-size: 1.08rem;
+  font-weight: 700;
+}
+
+.sales-history-filters {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.field-span-1 {
+  grid-column: span 1;
+}
+
+.field-span-2 {
+  grid-column: span 2;
+}
+
+.sales-history-mobile-list {
+  display: none;
+}
+
+.sales-history-sale-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.sale-card-title {
+  font-weight: 700;
+}
+
+.sale-card-meta {
+  display: grid;
+  gap: 6px;
+}
+
+/* DASHBOARD 7 DIAS */
+
+.dashboard-sales-7d-chart {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+  min-height: 250px;
+  margin-top: 8px;
+}
+
+.dashboard-sales-7d-col {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+}
+
+.dashboard-sales-7d-value {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 18px;
+}
+
+.dashboard-sales-7d-value.is-highlight {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.dashboard-sales-7d-bar-wrap {
+  min-height: 180px;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+}
+
+.dashboard-sales-7d-bar {
+  width: 100%;
+  max-width: 48px;
+  border-radius: 14px 14px 6px 6px;
+  background: linear-gradient(180deg, var(--primary), var(--primary-strong));
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.14);
+  transition: 0.2s ease;
+}
+
+.dashboard-sales-7d-bar.is-highlight {
+  filter: brightness(1.06);
+}
+
+.dashboard-sales-7d-label {
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* AUDITORIA */
+
+.audit-summary-line {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.audit-table th,
+.audit-table td {
+  vertical-align: top;
+}
+
+/* PERMISSÕES */
+
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.permission-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+body.theme-light .permission-item {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.permission-item input {
+  width: auto;
+  margin: 0;
+}
+
+/* TOAST */
 
 .toast-root {
   position: fixed;
@@ -1745,9 +1248,7 @@ body.theme-light .toast {
   border-color: rgba(255, 107, 107, 0.25);
 }
 
-/* =========================================
-   LOADING / BUSY
-========================================= */
+/* ESTADO BUSY */
 
 .is-loading {
   pointer-events: none;
@@ -1775,9 +1276,7 @@ body.theme-light .toast {
   }
 }
 
-/* =========================================
-   RESULTADOS DE BUSCA
-========================================= */
+/* RESULTADOS DE BUSCA */
 
 .search-result-item {
   width: 100%;
@@ -1797,40 +1296,209 @@ body.theme-light .search-result-item:hover {
   background: rgba(0, 0, 0, 0.03);
 }
 
-/* =========================================
-   SCANNER / VIDEO
-========================================= */
+/* DISPLAY HELPERS */
 
-.scanner-card {
-  display: grid;
-  gap: 10px;
+.desktop-only-inline {
+  display: inline-flex;
 }
 
-.video-preview {
-  width: 100%;
-  min-height: 220px;
-  max-height: 52vh;
-  object-fit: cover;
-  border-radius: 16px;
+.mobile-only-inline {
+  display: none;
+}
+
+/* RECOLHIMENTO DO MENU NO DESKTOP */
+
+body.sidebar-collapsed .app-shell {
+  grid-template-columns: 84px minmax(0, 1fr);
+}
+
+body.sidebar-collapsed .sidebar {
+  width: 84px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+body.sidebar-collapsed .brand-block span,
+body.sidebar-collapsed .brand-block strong,
+body.sidebar-collapsed .nav-item-label {
+  display: none;
+}
+
+body.sidebar-collapsed .sidebar-top {
+  justify-content: center;
+}
+
+body.sidebar-collapsed .nav-item {
+  justify-content: center;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+body.sidebar-collapsed .nav-item-icon {
+  margin: 0;
+}
+
+body.sidebar-collapsed .sidebar .nav-item {
+  position: relative;
+}
+
+body.sidebar-collapsed .sidebar .nav-item:hover::after {
+  content: attr(data-tab);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--panel);
+  color: var(--text);
   border: 1px solid var(--line);
-  background: #000;
+  border-radius: 10px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+  z-index: 100;
+  pointer-events: none;
+  text-transform: capitalize;
 }
 
-/* =========================================
-   RESPONSIVO - FLUTUANTES / MODAIS
-========================================= */
+/* RESPONSIVO */
+
+@media (max-width: 1200px) {
+  .cards-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .grid-2,
+  .users-layout,
+  .deliveries-layout,
+  .sales-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sticky-summary {
+    position: static;
+    top: auto;
+  }
+}
 
 @media (max-width: 920px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: min(84vw, 300px);
+    height: 100vh;
+    transform: translateX(-104%);
+    transition: 0.2s ease;
+    z-index: 80;
+  }
+
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .main-shell {
+    min-width: 0;
+  }
+
+  .desktop-only-inline {
+    display: none;
+  }
+
+  .mobile-only-inline {
+    display: inline-flex;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .topbar-left,
+  .topbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .topbar-right {
+    align-items: stretch;
+  }
+
+  .topbar-search {
+    width: 100%;
+  }
+
+  .topbar-search input {
+    min-width: 0;
+    width: 100%;
+  }
+
   .alerts-panel {
     right: auto;
     left: 0;
     width: min(94vw, 360px);
   }
+
+  body.sidebar-collapsed .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  body.sidebar-collapsed .sidebar {
+    width: min(84vw, 300px);
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  body.sidebar-collapsed .brand-block span,
+  body.sidebar-collapsed .brand-block strong,
+  body.sidebar-collapsed .nav-item-label {
+    display: initial;
+  }
+
+  body.sidebar-collapsed .sidebar-top {
+    justify-content: space-between;
+  }
+
+  body.sidebar-collapsed .nav-item {
+    justify-content: flex-start;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  body.sidebar-collapsed .sidebar .nav-item:hover::after {
+    display: none;
+  }
 }
 
 @media (max-width: 768px) {
+  .content-area {
+    padding: 14px;
+  }
+
+  .cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .form-grid,
+  .sales-history-filters,
+  .search-row,
+  .permission-grid,
   .sale-details-grid {
     grid-template-columns: 1fr;
+  }
+
+  .field-span-1,
+  .field-span-2 {
+    grid-column: auto;
+  }
+
+  .section-header-side {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .toast-root {
@@ -1838,977 +1506,13 @@ body.theme-light .search-result-item:hover {
     left: 10px;
     width: auto;
   }
-}
 
-@media (max-width: 560px) {
-  .alerts-panel {
-    width: min(94vw, 320px);
-  }
-}
-
-/* =========================================
-   AUDITORIA
-========================================= */
-
-.audit-summary-line {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-  color: var(--text-soft);
-  font-size: 0.88rem;
-}
-
-.audit-table th,
-.audit-table td {
-  vertical-align: top;
-}
-
-.audit-row-clickable {
-  cursor: pointer;
-  transition: background-color 0.18s ease, transform 0.12s ease;
-}
-
-.audit-row-clickable:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.audit-row-clickable:active {
-  transform: scale(0.998);
-}
-
-.audit-summary-text {
-  font-size: 12px;
-  opacity: 0.88;
-  line-height: 1.4;
-}
-
-.audit-description-cell {
-  max-width: 320px;
-  line-height: 1.45;
-}
-
-.audit-entity-cell {
-  max-width: 220px;
-  line-height: 1.4;
-}
-
-.audit-user-cell {
-  max-width: 220px;
-  line-height: 1.4;
-  word-break: break-word;
-}
-
-.audit-changes-list {
-  display: grid;
-  gap: 4px;
-}
-
-.audit-change-row {
-  line-height: 1.35;
-}
-
-.audit-change-arrow {
-  display: inline-block;
-  margin: 0 4px;
-  font-weight: 700;
-}
-
-/* =========================================
-   MODAL DE DETALHES DA AUDITORIA
-========================================= */
-
-.audit-details-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
-  gap: 12px;
-}
-
-.audit-details-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.audit-details-card strong {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.audit-details-card span {
-  display: block;
-  line-height: 1.45;
-  word-break: break-word;
-}
-
-.audit-section-block {
-  margin-top: 16px;
-}
-
-.audit-section-title {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.audit-raw-metadata {
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.audit-empty-box {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 14px;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-/* =========================================
-   TABELA DE ALTERAÇÕES DA AUDITORIA
-========================================= */
-
-.audit-changes-table td,
-.audit-changes-table th {
-  vertical-align: top;
-}
-
-.audit-old-value {
-  color: #ffb3a8;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.audit-new-value {
-  color: #9df0bf;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.audit-field-name {
-  font-weight: 700;
-}
-
-.audit-field-label {
-  opacity: 0.82;
-}
-
-/* =========================================
-   VENDAS - ESTRUTURA PRINCIPAL
-========================================= */
-
-.sales-page {
-  gap: 18px;
-}
-
-.sales-top-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 420px);
-  gap: 18px;
-  align-items: start;
-}
-
-.sales-main-panel,
-.sales-summary-panel {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  padding: 18px;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.sales-panel-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.sales-panel-header h2 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.sales-panel-header span {
-  display: block;
-  margin-top: 4px;
-  opacity: 0.78;
-  font-size: 13px;
-}
-
-/* =========================================
-   VENDAS - BUSCA E CLIENTE
-========================================= */
-
-.sales-search-box {
-  margin-bottom: 16px;
-}
-
-.sales-search-box input,
-#tab-sales #sale-product-search {
-  min-height: 52px;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.sales-client-box,
-.sales-results-panel,
-.sales-payment-box {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 14px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.sales-client-box {
-  margin-bottom: 16px;
-}
-
-.sales-client-box-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.sales-section-title {
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 10px;
-}
-
-.sales-inline-check {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.sales-search-toolbar {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.sales-search-main {
-  flex: 1 1 420px;
-  min-width: 280px;
-}
-
-.sales-search-main #sale-product-search {
-  width: 100%;
-}
-
-.sales-search-actions {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-#tab-sales #sale-select-client-btn,
-#tab-sales #sale-clear-client-btn {
-  min-height: 48px;
-}
-
-.sales-selected-client-box {
-  margin-bottom: 12px;
-  border: 1px solid rgba(37, 99, 235, 0.22);
-  border-radius: 14px;
-  padding: 12px 14px;
-  background: rgba(37, 99, 235, 0.08);
-  display: grid;
-  gap: 4px;
-}
-
-.sales-selected-client-box strong {
-  font-size: 15px;
-}
-
-.sales-selected-client-box span {
-  font-size: 13px;
-  opacity: 0.86;
-}
-
-/* =========================================
-   VENDAS - RESULTADOS DE PRODUTO
-========================================= */
-
-.sales-product-result {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) auto auto;
-  gap: 12px;
-  align-items: center;
-  padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.sales-product-result + .sales-product-result {
-  margin-top: 10px;
-}
-
-.sales-product-result-main {
-  display: grid;
-  gap: 4px;
-}
-
-.sales-product-result-main strong {
-  line-height: 1.35;
-}
-
-.sales-product-result-main span {
-  opacity: 0.78;
-  font-size: 13px;
-}
-
-.sales-product-result-meta {
-  display: grid;
-  gap: 4px;
-  text-align: right;
-  white-space: nowrap;
-  font-size: 13px;
-}
-
-.sales-product-result-meta strong {
-  font-size: 15px;
-}
-
-.sales-product-result-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.is-primary-result {
-  border-color: rgba(37, 99, 235, 0.35);
-  background: rgba(37, 99, 235, 0.08);
-}
-
-/* =========================================
-   VENDAS - CARRINHO
-========================================= */
-
-.sales-summary-panel {
-  position: sticky;
-  top: 16px;
-}
-
-.sales-cart-list {
-  min-height: 180px;
-  max-height: 340px;
-}
-
-.sales-cart-item {
-  padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.025);
-  transition: transform 0.16s ease, border-color 0.16s ease;
-}
-
-.sales-cart-item + .sales-cart-item {
-  margin-top: 10px;
-}
-
-.sales-cart-item:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.14);
-}
-
-.sales-cart-top,
-.sales-cart-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.sales-cart-top {
-  margin-bottom: 10px;
-}
-
-.sales-cart-title {
-  display: grid;
-  gap: 4px;
-}
-
-.sales-cart-title span {
-  opacity: 0.78;
-  font-size: 12px;
-}
-
-.sales-cart-price,
-.sales-cart-total {
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.sales-cart-total {
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.sales-cart-qty {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.sales-cart-qty .icon-action-btn {
-  min-width: 38px;
-  min-height: 38px;
-  font-size: 18px;
-}
-
-.sales-cart-remove-btn {
-  border-color: rgba(231, 76, 60, 0.24);
-}
-
-/* =========================================
-   VENDAS - RESUMO / TOTAIS
-========================================= */
-
-.sales-total-box {
-  margin-top: 16px;
-  border: 1px solid rgba(37, 99, 235, 0.18);
-  border-radius: 18px;
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.sales-total-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 0;
-}
-
-.sales-total-highlight {
-  margin-top: 8px;
-  background: rgba(37, 99, 235, 0.08);
-  border-radius: 14px;
-  padding: 14px 12px;
-  border-top: 0;
-  font-size: 18px;
-}
-
-.sales-total-highlight strong {
-  font-size: 28px;
-}
-
-.sales-change-strong {
-  color: #7ee7a8;
-  font-size: 20px;
-}
-
-.sales-final-actions {
-  margin-top: 16px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-#finish-sale-btn {
-  min-height: 52px;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.sales-empty-box {
-  min-height: 92px;
-}
-
-/* =========================================
-   HISTORICO DE VENDAS
-========================================= */
-
-.sales-history-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 18px;
-  margin-top: 2px;
-}
-
-.sales-history-filters {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr 1fr auto auto;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 14px;
-}
-
-.sales-history-table-wrap table tbody tr td {
-  vertical-align: middle;
-}
-
-.sales-history-row:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.sales-history-customer {
-  display: grid;
-  gap: 4px;
-}
-
-.sales-history-customer strong {
-  line-height: 1.35;
-}
-
-.sales-history-customer span {
-  font-size: 12px;
-  opacity: 0.76;
-}
-
-.sales-history-payment {
-  white-space: nowrap;
-}
-
-.sales-history-total {
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.sales-history-date {
-  white-space: nowrap;
-  font-size: 13px;
-}
-
-.sales-history-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.sales-history-actions .icon-action-btn {
-  min-width: 34px;
-  min-height: 34px;
-  border-radius: 10px;
-}
-
-.sales-history-mobile-list {
-  display: none;
-}
-
-.sales-history-sale-card {
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px;
-  display: grid;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.sale-card-title {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.sale-card-meta {
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-}
-
-.sale-card-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.sale-status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  background: rgba(37, 99, 235, 0.10);
-  border: 1px solid rgba(37, 99, 235, 0.18);
-}
-
-/* =========================================
-   MODAIS DE VENDAS
-========================================= */
-
-.sale-modal-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
-  gap: 12px;
-}
-
-.sale-modal-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.sale-modal-card strong {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.sale-modal-card span {
-  display: block;
-  line-height: 1.45;
-  word-break: break-word;
-}
-
-.sale-modal-section {
-  margin-top: 16px;
-}
-
-.sale-modal-section-title {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.sale-items-box {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.sale-edit-products-box {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.sale-delete-warning {
-  border: 1px solid rgba(231, 76, 60, 0.18);
-  border-radius: 16px;
-  padding: 14px;
-  background: rgba(231, 76, 60, 0.06);
-}
-
-.sale-delete-warning strong {
-  display: block;
-  margin-bottom: 6px;
-}
-
-/* =========================================
-   RESPONSIVO - AUDITORIA E VENDAS
-========================================= */
-
-@media (max-width: 1100px) {
-  .sales-top-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .sales-summary-panel {
-    position: static;
-    top: auto;
-  }
-}
-
-@media (max-width: 980px) {
-  .sales-history-filters {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 900px) {
-  .audit-details-grid,
-  .sale-modal-grid,
-  .section-summary-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .audit-description-cell,
-  .audit-entity-cell,
-  .audit-user-cell {
-    max-width: none;
-  }
-}
-
-@media (max-width: 760px) {
-  .sales-product-result {
-    grid-template-columns: 1fr;
-    text-align: left;
-  }
-
-  .sales-product-result-meta {
-    text-align: left;
-  }
-
-  .sales-final-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .sales-client-box-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .sales-search-toolbar {
-    align-items: stretch;
-  }
-
-  .sales-search-main,
-  .sales-search-actions {
-    width: 100%;
-  }
-}
-
-@media (max-width: 768px) {
-  .sales-history-table-wrap {
+  .sales-history-desktop-table {
     display: none;
   }
 
   .sales-history-mobile-list {
-    display: grid;
-    gap: 10px;
-  }
-}
-
-@media (max-width: 640px) {
-  .sales-history-filters {
-    grid-template-columns: 1fr;
-  }
-
-  .sales-history-actions {
-    justify-content: flex-start;
-  }
-}
-
-/* =========================================
-   DASHBOARD
-========================================= */
-
-.dashboard-card-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.dashboard-card-grid > .table-card,
-.dashboard-card-grid > .panel {
-  min-width: 0;
-}
-
-.dashboard-sales-7d-chart {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
-  align-items: end;
-  min-height: 250px;
-  margin-top: 8px;
-}
-
-.dashboard-sales-7d-col {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 8px;
-  align-items: end;
-  min-width: 0;
-}
-
-.dashboard-sales-7d-value {
-  font-size: 0.78rem;
-  color: var(--text-soft);
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-height: 18px;
-}
-
-.dashboard-sales-7d-value.is-highlight {
-  color: var(--text);
-  font-weight: 700;
-}
-
-.dashboard-sales-7d-bar-wrap {
-  min-height: 180px;
-  display: flex;
-  align-items: end;
-  justify-content: center;
-}
-
-.dashboard-sales-7d-bar {
-  width: 100%;
-  max-width: 48px;
-  border-radius: 14px 14px 6px 6px;
-  background: linear-gradient(180deg, var(--primary), var(--primary-strong));
-  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.14);
-  transition: 0.2s ease;
-}
-
-.dashboard-sales-7d-bar.is-highlight {
-  filter: brightness(1.06);
-}
-
-.dashboard-sales-7d-label {
-  font-size: 0.82rem;
-  color: var(--text-soft);
-  text-align: center;
-  white-space: nowrap;
-}
-
-/* =========================================
-   PERMISSOES
-========================================= */
-
-.permission-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.permission-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-body.theme-light .permission-item {
-  background: rgba(0, 0, 0, 0.015);
-}
-
-.permission-item input {
-  width: auto;
-  margin: 0;
-}
-
-/* =========================================
-   NOTIFICACOES - AJUSTES FINAIS
-========================================= */
-
-.notifications-modal-card .table-wrap,
-.notifications-modal-card .scroll-dual {
-  max-height: calc(90vh - 120px);
-  overflow: auto;
-}
-
-.notifications-modal-card .section-header {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: linear-gradient(180deg, var(--panel), var(--panel-2));
-  padding-bottom: 10px;
-}
-
-.notification-row .form-actions {
-  justify-content: flex-end;
-}
-
-/* =========================================
-   BLOCO FINANCEIRO / RESUMOS
-========================================= */
-
-.summary-box .summary-line strong,
-.sales-total-box strong {
-  white-space: nowrap;
-}
-
-.metric-card,
-.compact-card,
-.summary-box,
-.sale-items-box,
-.audit-empty-box,
-.sale-delete-warning {
-  overflow-wrap: anywhere;
-}
-
-/* =========================================
-   SCANNER / CAMERA
-========================================= */
-
-.scanner-card .form-actions {
-  justify-content: space-between;
-}
-
-.scanner-card .empty-state {
-  min-height: auto;
-}
-
-/* =========================================
-   TOOLTIPS / HOVERS SIMPLES
-========================================= */
-
-.nav-item,
-.btn,
-.icon-btn,
-.icon-action-btn,
-.list-item,
-.search-result-item,
-.audit-row-clickable {
-  will-change: transform;
-}
-
-/* =========================================
-   MELHORIAS DE LEGIBILIDADE
-========================================= */
-
-.table-card h2,
-.panel h2,
-.card h2,
-.table-card h3,
-.panel h3,
-.card h3 {
-  overflow-wrap: anywhere;
-}
-
-.metric-card strong,
-.compact-card strong {
-  overflow-wrap: anywhere;
-}
-
-.section-header,
-.section-header-text,
-.section-header-side,
-.form-actions,
-.inline-row,
-.entity-toolbar,
-.entity-toolbar-actions {
-  min-width: 0;
-}
-
-/* =========================================
-   CAMPOS DE ABA DE VENDAS / SELECTS
-========================================= */
-
-#tab-sales select,
-#tab-sales option {
-  color: var(--text);
-  background: var(--panel);
-}
-
-body.theme-light #tab-sales select,
-body.theme-light #tab-sales option {
-  color: var(--text);
-  background: #fff;
-}
-
-/* =========================================
-   MOBILE / RESPONSIVO FINAL
-========================================= */
-
-@media (max-width: 920px) {
-  .dashboard-card-grid {
-    grid-template-columns: 1fr;
+    display: block;
   }
 
   .dashboard-sales-7d-chart {
@@ -2834,26 +1538,26 @@ body.theme-light #tab-sales option {
   }
 }
 
-@media (max-width: 768px) {
-  .permission-grid,
-  .sale-details-grid {
+@media (max-width: 560px) {
+  .auth-card {
+    padding: 22px 18px;
+  }
+
+  .cards-grid {
     grid-template-columns: 1fr;
   }
 
-  .notifications-modal-card {
-    width: min(96vw, 96vw);
-    max-width: min(96vw, 96vw);
+  .panel,
+  .table-card,
+  .card,
+  .metric-card {
+    padding: 14px;
   }
 
-  .notifications-modal-card .section-header {
-    position: static;
-    top: auto;
-    background: transparent;
-    padding-bottom: 0;
+  table {
+    min-width: 640px;
   }
-}
 
-@media (max-width: 560px) {
   .dashboard-sales-7d-chart {
     gap: 6px;
     min-height: 190px;
@@ -2874,368 +1578,769 @@ body.theme-light #tab-sales option {
   .dashboard-sales-7d-label {
     font-size: 0.72rem;
   }
+
+  .alerts-panel {
+    width: min(94vw, 320px);
+  }
 }
 
-/* =========================================
-   MODO FOCO - VENDAS
-========================================= */
+/* =========================
+   SCROLL INTERNO PADRONIZADO
+   ========================= */
 
-.sales-focus-banner {
-  margin-bottom: 14px;
-  border: 1px solid rgba(37, 99, 235, 0.24);
-  border-radius: 14px;
-  padding: 12px 14px;
-  background: rgba(37, 99, 235, 0.10);
+.table-card .table-wrap,
+.table-card .sales-history-table-wrap,
+.table-card .audit-table-scroll,
+.table-card .standard-scroll-x {
+  max-height: min(58vh, 460px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.panel-scroll,
+.list-scroll,
+.dashboard-list-scroll,
+.card-scroll-y {
+  max-height: min(52vh, 400px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px;
+}
+
+.card-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-dual {
+  max-height: min(58vh, 460px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-wrap table,
+.sales-history-table-wrap table,
+.audit-table-scroll table,
+.standard-scroll-x table {
+  min-width: 760px;
+}
+
+.audit-table-scroll table.audit-table {
+  min-width: 980px;
+}
+
+.dashboard-list-scroll .list-item,
+.list-scroll .list-item {
+  margin-right: 2px;
+}
+
+/* =========================
+   CABEÇALHO DE AÇÃO DE CADASTRO
+   ========================= */
+
+.entity-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.entity-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.entity-toolbar .muted {
+  margin: 0;
+}
+
+/* =========================
+   MODAL DE CADASTRO
+   ========================= */
+
+.form-modal-card {
+  width: min(96vw, 880px);
+  max-width: min(96vw, 880px);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.form-modal-body {
   display: grid;
-  gap: 4px;
+  gap: 16px;
 }
 
-.sales-focus-banner strong {
-  font-size: 14px;
-}
-
-.sales-focus-banner span {
-  font-size: 13px;
-  opacity: 0.88;
-}
-
-body.sales-focus-mode .sales-history-focus-target {
-  display: block !important;
-  opacity: 0.96;
-}
-
-body.sales-focus-mode .sales-page-focus {
-  min-height: calc(100vh - 20px);
-}
-
-body.sales-focus-mode #tab-sales .sales-top-layout {
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 420px);
-  min-height: auto;
-}
-
-body.sales-focus-mode #tab-sales .sales-main-panel,
-body.sales-focus-mode #tab-sales .sales-summary-panel {
-  min-height: auto;
-}
-
-body.sales-focus-mode #tab-sales .sales-results-panel {
-  display: grid;
-  grid-template-rows: auto 1fr;
-}
-
-body.sales-focus-mode #tab-sales #sale-search-results {
-  min-height: 260px;
-  max-height: none;
-}
-
-body.sales-focus-mode #tab-sales .sales-cart-list {
-  min-height: 260px;
-  max-height: none;
-}
-
-body.sales-focus-mode #tab-sales .sales-summary-panel {
-  display: grid;
-  grid-template-rows: auto 1fr auto auto auto;
-  gap: 14px;
-}
-
-body.sales-focus-mode #tab-sales .sales-payment-box {
+.form-modal-body .form-grid {
   margin-top: 0;
 }
 
-@media (max-width: 1100px) {
-  body.sales-focus-mode #tab-sales .sales-top-layout {
+/* =========================
+   DASHBOARD COM CARDS ROLÁVEIS
+   ========================= */
+
+.dashboard-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.dashboard-card-grid .table-card,
+.dashboard-card-grid .panel {
+  min-width: 0;
+}
+
+@media (max-width: 920px) {
+  .dashboard-card-grid {
     grid-template-columns: 1fr;
-    min-height: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .table-card .table-wrap,
+  .table-card .sales-history-table-wrap,
+  .table-card .audit-table-scroll,
+  .table-card .standard-scroll-x,
+  .scroll-dual {
+    max-height: min(56vh, 380px);
   }
 
-  body.sales-focus-mode #tab-sales .sales-main-panel,
-  body.sales-focus-mode #tab-sales .sales-summary-panel {
-    min-height: auto;
+  .panel-scroll,
+  .list-scroll,
+  .dashboard-list-scroll,
+  .card-scroll-y {
+    max-height: min(44vh, 320px);
+  }
+
+  .form-modal-card {
+    width: min(96vw, 96vw);
+    max-width: min(96vw, 96vw);
+  }
+}
+
+/* =========================
+   VENDAS - CAMPO DE BUSCA MAIOR NO DESKTOP
+   ========================= */
+
+#tab-sales #sale-product-search {
+  min-height: 48px;
+  font-size: 1rem;
+}
+
+@media (min-width: 1024px) {
+  #tab-sales #sale-product-search {
+    min-width: 420px;
+    width: min(100%, 620px);
+    font-size: 1.05rem;
+    padding: 13px 14px;
+  }
+
+  #tab-sales .sales-search-row,
+  #tab-sales .sale-search-row,
+  #tab-sales .search-row.sales-search {
+    grid-template-columns: minmax(420px, 620px) auto auto;
+    align-items: end;
+  }
+
+  #tab-sales .sales-layout .panel:first-child .search-row:first-of-type,
+  #tab-sales .sales-layout .panel:first-child .form-actions:first-of-type {
+    align-items: end;
+  }
+}
+
+/* =========================
+   SETTINGS / AUDITORIA COM ROLAGEM INTERNA
+   ========================= */
+
+#tab-settings .settings-audit-scroll {
+  max-height: min(58vh, 460px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#tab-settings .settings-financial-scroll {
+  max-height: min(52vh, 360px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+#tab-settings .settings-cash-history-scroll {
+  max-height: min(58vh, 420px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  #tab-settings .settings-audit-scroll,
+  #tab-settings .settings-cash-history-scroll {
+    max-height: min(50vh, 340px);
+  }
+
+  #tab-settings .settings-financial-scroll {
+    max-height: min(42vh, 280px);
   }
 }
 
 /* =========================================
-   RESUMOS SUPERIORES DAS ABAS
-========================================= */
+   PADRONIZACAO FINAL DE SCROLL E RESPONSIVIDADE
+   ========================================= */
 
-.section-summary-card {
-  border: 1px solid var(--line);
-  background: linear-gradient(180deg, var(--panel), var(--panel-2));
-  border-radius: 18px;
-  box-shadow: var(--shadow);
-  padding: 16px;
+/* Cards e tabelas longas */
+.table-card,
+.panel,
+.card,
+.metric-card,
+.compact-card {
+  min-width: 0;
 }
 
-.section-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.table-card .section-header,
+.panel .section-header,
+.card .section-header {
+  min-width: 0;
+}
+
+.table-card .section-header h2,
+.panel .section-header h2,
+.card .section-header h2,
+.table-card .section-header h3,
+.panel .section-header h3,
+.card .section-header h3 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Scroll padrão para tabelas */
+.table-wrap,
+.sales-history-table-wrap,
+.audit-table-scroll,
+.standard-scroll-x,
+.scroll-dual {
+  width: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Altura padrão em áreas de tabela */
+.table-card .table-wrap,
+.table-card .sales-history-table-wrap,
+.table-card .audit-table-scroll,
+.table-card .standard-scroll-x,
+.table-card .scroll-dual {
+  max-height: min(58vh, 460px);
+}
+
+/* Listas grandes */
+.panel-scroll,
+.list-scroll,
+.dashboard-list-scroll,
+.card-scroll-y,
+.stack-list.list-scroll {
+  max-height: min(52vh, 400px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+}
+
+/* Scroll horizontal isolado */
+.card-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Evita expansão lateral inesperada */
+.table-wrap table,
+.sales-history-table-wrap table,
+.audit-table-scroll table,
+.standard-scroll-x table,
+.scroll-dual table {
+  min-width: 760px;
+}
+
+.audit-table-scroll table.audit-table,
+.scroll-dual table.audit-table {
+  min-width: 980px;
+}
+
+/* Em listas, evita quebra ruim */
+.list-item,
+.sale-item-card,
+.cart-item,
+.sale-details-box,
+.compact-card,
+.metric-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Toolbar padrão das abas */
+.entity-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
-.section-summary-item {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 14px;
-  background: rgba(255, 255, 255, 0.02);
+.entity-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Formulário em modal */
+.form-modal-card {
+  width: min(96vw, 880px);
+  max-width: min(96vw, 880px);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.form-modal-body {
   display: grid;
-  gap: 6px;
+  gap: 16px;
 }
 
-body.theme-light .section-summary-item {
-  background: rgba(0, 0, 0, 0.015);
+/* Dashboard com cards grandes */
+.dashboard-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
 
-.section-summary-item span {
-  color: var(--text-soft);
-  font-size: 0.9rem;
+.dashboard-card-grid > .table-card,
+.dashboard-card-grid > .panel {
+  min-width: 0;
 }
 
-.section-summary-item strong {
-  font-size: 1.5rem;
-  line-height: 1.1;
+/* Tabelas sempre usáveis no mobile */
+@media (max-width: 920px) {
+  .dashboard-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-card .table-wrap,
+  .table-card .sales-history-table-wrap,
+  .table-card .audit-table-scroll,
+  .table-card .standard-scroll-x,
+  .table-card .scroll-dual {
+    max-height: min(54vh, 380px);
+  }
+
+  .panel-scroll,
+  .list-scroll,
+  .dashboard-list-scroll,
+  .card-scroll-y {
+    max-height: min(44vh, 320px);
+  }
 }
 
-@media (max-width: 900px) {
-  .section-summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 768px) {
+  .form-modal-card {
+    width: min(96vw, 96vw);
+    max-width: min(96vw, 96vw);
+  }
+
+  .entity-toolbar {
+    align-items: stretch;
+  }
+
+  .entity-toolbar-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .table-wrap table,
+  .sales-history-table-wrap table,
+  .audit-table-scroll table,
+  .standard-scroll-x table,
+  .scroll-dual table {
+    min-width: 640px;
+  }
+
+  .table-card .table-wrap,
+  .table-card .sales-history-table-wrap,
+  .table-card .audit-table-scroll,
+  .table-card .standard-scroll-x,
+  .table-card .scroll-dual {
+    max-height: min(50vh, 340px);
+  }
+
+  .panel-scroll,
+  .list-scroll,
+  .dashboard-list-scroll,
+  .card-scroll-y {
+    max-height: min(40vh, 280px);
   }
 }
 
 @media (max-width: 560px) {
-  .section-summary-grid {
-    grid-template-columns: 1fr;
+  .table-wrap table,
+  .sales-history-table-wrap table,
+  .audit-table-scroll table,
+  .standard-scroll-x table,
+  .scroll-dual table {
+    min-width: 600px;
+  }
+
+  .table-card .table-wrap,
+  .table-card .sales-history-table-wrap,
+  .table-card .audit-table-scroll,
+  .table-card .standard-scroll-x,
+  .table-card .scroll-dual {
+    max-height: min(46vh, 300px);
+  }
+
+  .panel-scroll,
+  .list-scroll,
+  .dashboard-list-scroll,
+  .card-scroll-y {
+    max-height: min(36vh, 240px);
   }
 }
 
 /* =========================================
-   CORRECAO - DUPLICIDADE DO BOTAO DE MENU
-========================================= */
+   AJUSTES FINOS POR ABA
+   ========================================= */
 
-@media (min-width: 921px) {
-  .topbar .mobile-only-inline {
-    display: none !important;
-  }
-
-  .sidebar-top .desktop-only-inline {
-    display: inline-flex !important;
-  }
+/* Produtos */
+#tab-products .table-wrap,
+#tab-products .scroll-dual {
+  max-height: min(58vh, 460px);
 }
 
-@media (max-width: 920px) {
-  .topbar .mobile-only-inline {
-    display: inline-flex !important;
+/* Clientes */
+#tab-clients .table-wrap,
+#tab-clients .scroll-dual {
+  max-height: min(58vh, 440px);
+}
+
+/* Fornecedores */
+#tab-suppliers .table-wrap,
+#tab-suppliers .scroll-dual {
+  max-height: min(58vh, 440px);
+}
+
+/* Compras */
+#tab-purchases .table-wrap,
+#tab-purchases .scroll-dual {
+  max-height: min(58vh, 440px);
+}
+
+/* Contas a pagar */
+#tab-payables .table-wrap,
+#tab-payables .scroll-dual {
+  max-height: min(58vh, 440px);
+}
+
+/* Usuários */
+#tab-users .table-wrap,
+#tab-users .scroll-dual {
+  max-height: min(58vh, 420px);
+}
+
+/* Relatórios */
+#tab-reports .table-wrap,
+#tab-reports .scroll-dual {
+  max-height: min(58vh, 420px);
+}
+
+/* Dashboard */
+#tab-dashboard .dashboard-list-scroll,
+#tab-dashboard .list-scroll {
+  max-height: min(46vh, 320px);
+}
+
+/* Settings */
+#tab-settings .settings-audit-scroll {
+  max-height: min(58vh, 460px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#tab-settings .settings-financial-scroll {
+  max-height: min(52vh, 360px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+#tab-settings .settings-cash-history-scroll {
+  max-height: min(58vh, 420px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  #tab-settings .settings-audit-scroll,
+  #tab-settings .settings-cash-history-scroll {
+    max-height: min(50vh, 340px);
   }
 
-  .sidebar-top .desktop-only-inline,
-  .sidebar-top .icon-btn.desktop-only-inline,
-  .sidebar-top .icon-btn[data-sidebar-collapse],
-  .sidebar-top .icon-btn[data-collapse-sidebar] {
-    display: none !important;
+  #tab-settings .settings-financial-scroll {
+    max-height: min(42vh, 280px);
   }
 }
 
 /* =========================================
-   CLIENT PICKER - CONTRASTE NO MODO ESCURO
-========================================= */
+   VENDAS - CAMPO GRANDE NO DESKTOP
+   ========================================= */
 
-#sale-client-picker-host,
-#sale-client-picker-host * {
-  color: var(--text);
+#tab-sales #sale-product-search {
+  min-height: 48px;
+  font-size: 1rem;
 }
 
-#sale-client-picker-host input,
-#sale-client-picker-host select,
-#sale-client-picker-host textarea,
-#sale-client-picker-host button {
+@media (min-width: 1024px) {
+  #tab-sales #sale-product-search {
+    min-width: 420px;
+    width: min(100%, 620px);
+    font-size: 1.05rem;
+    padding: 13px 14px;
+  }
+
+  #tab-sales .sales-search-row,
+  #tab-sales .sale-search-row,
+  #tab-sales .search-row.sales-search {
+    grid-template-columns: minmax(420px, 620px) auto auto;
+    align-items: end;
+  }
+}
+
+#tab-sales .sales-search-row {
+  align-items: end;
+}
+
+#tab-sales #sale-select-client-btn,
+#tab-sales #sale-clear-client-btn {
+  min-height: 48px;
+  align-self: end;
+}
+
+#tab-sales #sale-search-results .list-item {
+  display: grid;
+  gap: 8px;
+}
+
+#tab-sales select,
+#tab-sales option {
   color: var(--text);
   background: var(--panel);
 }
 
-#sale-client-picker-host .list-item,
-#sale-client-picker-host .client-picker-item,
-#sale-client-picker-host .search-result-item,
-#sale-client-picker-host .card,
-#sale-client-picker-host .panel,
-#sale-client-picker-host .table-card,
-#sale-client-picker-host .compact-card {
+body.theme-light #tab-sales select,
+body.theme-light #tab-sales option {
   color: var(--text);
-  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  background: #fff;
 }
 
-#sale-client-picker-host .muted,
-#sale-client-picker-host small,
-#sale-client-picker-host .secondary-text,
-#sale-client-picker-host .auth-hint,
-#sale-client-picker-host span {
-  color: var(--text-soft);
+@media (min-width: 1024px) {
+  #tab-sales .sales-search-row {
+    grid-template-columns: minmax(420px, 620px) auto auto;
+  }
+
+  #tab-sales #sale-product-search {
+    min-width: 420px;
+    width: min(100%, 620px);
+  }
 }
 
-#sale-client-picker-host strong,
-#sale-client-picker-host h2,
-#sale-client-picker-host h3,
-#sale-client-picker-host label,
-#sale-client-picker-host p,
-#sale-client-picker-host div {
-  color: var(--text);
+#tab-sales .sales-search-row {
+  align-items: end;
 }
 
-/* =========================================
-   CONTRASTE GLOBAL - ITENS DINAMICOS / MODAIS
-========================================= */
-
-body.theme-light .modal-card,
-body.theme-light .actions-sheet,
-body.theme-light .table-card,
-body.theme-light .panel,
-body.theme-light .card,
-body.theme-light .compact-card,
-body.theme-light .metric-card,
-body.theme-light .list-item,
-body.theme-light .empty-state {
-  color: var(--text);
+#tab-sales #sale-select-client-btn,
+#tab-sales #sale-clear-client-btn {
+  min-height: 48px;
+  align-self: end;
 }
 
-body:not(.theme-light) .modal-card,
-body:not(.theme-light) .actions-sheet,
-body:not(.theme-light) .table-card,
-body:not(.theme-light) .panel,
-body:not(.theme-light) .card,
-body:not(.theme-light) .compact-card,
-body:not(.theme-light) .metric-card,
-body:not(.theme-light) .list-item,
-body:not(.theme-light) .empty-state {
-  color: var(--text);
+#tab-sales #sale-search-results .list-item {
+  display: grid;
+  gap: 8px;
 }
 
-body:not(.theme-light) .modal-card *,
-body:not(.theme-light) .actions-sheet *,
-body:not(.theme-light) .table-card *,
-body:not(.theme-light) .panel *,
-body:not(.theme-light) .card *,
-body:not(.theme-light) .compact-card *,
-body:not(.theme-light) .metric-card *,
-body:not(.theme-light) .list-item * {
-  color: inherit;
-}
-
-body:not(.theme-light) .muted,
-body:not(.theme-light) .auth-hint,
-body:not(.theme-light) small,
-body:not(.theme-light) .secondary-text {
-  color: var(--text-soft) !important;
-}
-
-body:not(.theme-light) input,
-body:not(.theme-light) select,
-body:not(.theme-light) textarea {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-body:not(.theme-light) option {
+#tab-sales select,
+#tab-sales option {
   color: var(--text);
   background: var(--panel);
 }
 
-/* =========================================
-   LISTAS DE SELECAO / PICKERS
-========================================= */
-
-.client-picker-item,
-.customer-picker-item,
-.entity-picker-item,
-.selectable-row,
-.search-result-item,
-.list-item button,
-.list-item a {
-  color: inherit;
-}
-
-body:not(.theme-light) .client-picker-item,
-body:not(.theme-light) .customer-picker-item,
-body:not(.theme-light) .entity-picker-item,
-body:not(.theme-light) .selectable-row,
-body:not(.theme-light) .search-result-item {
+body.theme-light #tab-sales select,
+body.theme-light #tab-sales option {
   color: var(--text);
-  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  background: #fff;
 }
 
-body:not(.theme-light) .client-picker-item span,
-body:not(.theme-light) .customer-picker-item span,
-body:not(.theme-light) .entity-picker-item span,
-body:not(.theme-light) .selectable-row span,
-body:not(.theme-light) .search-result-item span {
-  color: var(--text-soft);
+@media (min-width: 1024px) {
+  #tab-sales .sales-search-row {
+    grid-template-columns: minmax(420px, 620px) auto auto;
+  }
+
+  #tab-sales #sale-product-search {
+    min-width: 420px;
+    width: min(100%, 620px);
+  }
 }
 
-body:not(.theme-light) .client-picker-item strong,
-body:not(.theme-light) .customer-picker-item strong,
-body:not(.theme-light) .entity-picker-item strong,
-body:not(.theme-light) .selectable-row strong,
-body:not(.theme-light) .search-result-item strong {
-  color: var(--text);
+#tab-sales .sales-search-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-/* =========================================
-   CLIENT PICKER
-========================================= */
+#tab-sales .sales-search-main {
+  flex: 1 1 420px;
+  min-width: 280px;
+}
 
-.client-picker-item {
-  text-align: left;
+#tab-sales .sales-search-main #sale-product-search {
   width: 100%;
-  cursor: pointer;
-  transition: transform 0.16s ease, border-color 0.16s ease;
+  min-height: 48px;
+  font-size: 1rem;
 }
 
-.client-picker-item:hover {
-  transform: translateY(-1px);
-  border-color: rgba(37, 99, 235, 0.24);
+#tab-sales .sales-search-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.client-picker-item strong {
-  font-size: 15px;
+#tab-sales #sale-select-client-btn,
+#tab-sales #sale-clear-client-btn {
+  min-height: 48px;
 }
 
-.client-picker-item span {
-  font-size: 13px;
+#tab-sales #sale-search-results .list-item {
+  display: grid;
+  gap: 8px;
 }
 
-/* TESTE DE DESEMPENHO - VENDAS */
-#tab-sales,
-#tab-sales * {
-  transition: none !important;
-  animation: none !important;
-  box-shadow: none !important;
-  filter: none !important;
-  backdrop-filter: none !important;
+#tab-sales select,
+#tab-sales option {
+  color: var(--text);
+  background: var(--panel);
 }
 
-#tab-sales .sales-main-panel,
-#tab-sales .sales-summary-panel,
-#tab-sales .sales-client-box,
-#tab-sales .sales-results-panel,
-#tab-sales .sales-payment-box,
-#tab-sales .sales-total-box,
-#tab-sales .sales-history-card,
-#tab-sales .sales-product-result,
-#tab-sales .sales-cart-item,
-#tab-sales .sales-history-sale-card,
-#tab-sales .sales-selected-client-box,
-#tab-sales .sale-items-box,
-#tab-sales .sale-edit-products-box,
-#tab-sales .sale-modal-card {
-  background: var(--panel) !important;
-  box-shadow: none !important;
+body.theme-light #tab-sales select,
+body.theme-light #tab-sales option {
+  color: var(--text);
+  background: #fff;
 }
 
-#tab-sales .sales-summary-panel {
-  position: static !important;
+@media (max-width: 768px) {
+  #tab-sales .sales-search-toolbar {
+    align-items: stretch;
+  }
+
+  #tab-sales .sales-search-main,
+  #tab-sales .sales-search-actions {
+    width: 100%;
+  }
 }
 
-#tab-sales .panel-scroll,
-#tab-sales .card-scroll-y,
-#tab-sales .sales-cart-list,
-#tab-sales #sale-search-results {
+#tab-settings .settings-audit-scroll {
+  max-height: min(58vh, 460px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+#tab-settings .settings-audit-scroll > * {
+  min-width: 100%;
+}
+
+#tab-settings .settings-audit-scroll table {
+  min-width: 980px;
+  width: max-content;
+}
+
+#tab-settings .settings-audit-scroll .table-wrap,
+#tab-settings .settings-audit-scroll .audit-table-scroll,
+#tab-settings .settings-audit-scroll .scroll-dual {
   max-height: none !important;
+  overflow: visible !important;
+}
+
+#tab-settings .settings-audit-host {
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  #tab-settings .settings-audit-scroll {
+    max-height: min(50vh, 340px);
+  }
+
+  #tab-settings .settings-audit-scroll table {
+    min-width: 860px;
+  }
+}
+.audit-changes-list {
+  display: grid;
+  gap: 4px;
+}
+
+.audit-change-row {
+  line-height: 1.35;
+}
+
+.audit-change-arrow {
+  display: inline-block;
+  margin: 0 4px;
+  font-weight: 700;
+}
+
+
+#notifications-bell-btn {
+  position: relative;
+}
+
+#notifications-badge,
+.badge,
+.badge-counter {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.notifications-modal-card {
+  width: min(96vw, 1100px);
+  max-width: min(96vw, 1100px);
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.notification-row {
+  gap: 8px;
+}
+
+.notification-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.notification-row.is-read {
+  opacity: .78;
 }
