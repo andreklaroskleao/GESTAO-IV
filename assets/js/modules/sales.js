@@ -172,6 +172,91 @@ export function createSalesModule(ctx) {
     return Number(sale?.version || 0);
   }
 
+  function isSalesFocusMode() {
+    return document.body.classList.contains('sales-focus-mode');
+  }
+
+  function setSalesFocusMode(enabled) {
+    document.body.classList.toggle('sales-focus-mode', Boolean(enabled));
+
+    try {
+      localStorage.setItem('sales_focus_mode', enabled ? '1' : '0');
+    } catch (error) {
+      console.warn('Falha ao salvar modo foco da venda.', error);
+    }
+  }
+
+  function loadSalesFocusMode() {
+    try {
+      return localStorage.getItem('sales_focus_mode') === '1';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async function enterBrowserFullscreen() {
+    const root = document.documentElement || document.body;
+
+    try {
+      if (!document.fullscreenElement && root?.requestFullscreen) {
+        await root.requestFullscreen();
+      }
+    } catch (error) {
+      console.warn('Falha ao entrar em tela cheia.', error);
+    }
+  }
+
+  async function exitBrowserFullscreen() {
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.warn('Falha ao sair da tela cheia.', error);
+    }
+  }
+
+  async function toggleSalesFocusMode() {
+    const enabled = !isSalesFocusMode();
+
+    if (enabled) {
+      setSalesFocusMode(true);
+      await enterBrowserFullscreen();
+    } else {
+      await exitBrowserFullscreen();
+      setSalesFocusMode(false);
+    }
+
+    render();
+
+    if (enabled) {
+      setTimeout(() => {
+        focusSearchInput();
+      }, 80);
+    }
+  }
+
+  function bindSalesFocusFullscreenSync() {
+    if (window.__salesFocusFullscreenBound) return;
+    window.__salesFocusFullscreenBound = true;
+
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && document.body.classList.contains('sales-focus-mode')) {
+        document.body.classList.remove('sales-focus-mode');
+
+        try {
+          localStorage.setItem('sales_focus_mode', '0');
+        } catch (error) {
+          console.warn('Falha ao limpar modo foco da venda.', error);
+        }
+
+        if (tabEls.sales?.classList.contains('active')) {
+          render();
+        }
+      }
+    });
+  }
+
   function addProductToCart(productId) {
     syncSaleFormStateFromDom();
 
@@ -847,8 +932,7 @@ export function createSalesModule(ctx) {
 
     recalcAndRender();
   }
-
-  async function restoreSaleItemsToStock(sale) {
+async function restoreSaleItemsToStock(sale) {
     const items = Array.isArray(sale.items) ? sale.items : [];
 
     for (const item of items) {
@@ -1186,10 +1270,14 @@ export function createSalesModule(ctx) {
   }
 
   function render() {
+    if (loadSalesFocusMode()) {
+      document.body.classList.add('sales-focus-mode');
+    }
+
     const { subtotal, discount, total, change, amountPaid } = calculateCartTotal();
 
     tabEls.sales.innerHTML = `
-      <div class="section-stack sales-page">
+      <div class="section-stack sales-page ${isSalesFocusMode() ? 'sales-page-focus' : ''}">
         <div class="sales-top-layout">
           <div class="sales-main-panel">
             <div class="sales-panel-header">
@@ -1197,7 +1285,24 @@ export function createSalesModule(ctx) {
                 <h2>Nova venda</h2>
                 <span>Pesquise por nome ou código de barras</span>
               </div>
+
+              <div class="form-actions">
+                <button
+                  class="btn btn-secondary"
+                  type="button"
+                  id="toggle-sales-focus-btn"
+                >
+                  ${isSalesFocusMode() ? 'Sair da tela cheia' : 'Expandir venda'}
+                </button>
+              </div>
             </div>
+
+            ${isSalesFocusMode() ? `
+              <div class="sales-focus-banner">
+                <strong>Modo foco ativo</strong>
+                <span>Histórico oculto para operação rápida de vendas.</span>
+              </div>
+            ` : ''}
 
             <div class="sales-search-box">
               <input
@@ -1295,7 +1400,7 @@ export function createSalesModule(ctx) {
           </div>
         </div>
 
-        <div class="table-card sales-history-card">
+        <div class="table-card sales-history-card sales-history-focus-target">
           <div class="section-header">
             <h2>Histórico de vendas</h2>
           </div>
@@ -1350,91 +1455,3 @@ export function createSalesModule(ctx) {
     const paymentMethodInput = tabEls.sales.querySelector('#sale-payment-method');
     const discountInput = tabEls.sales.querySelector('input[name="discount"]');
     const amountPaidInput = tabEls.sales.querySelector('input[name="amountPaid"]');
-    const notesInput = tabEls.sales.querySelector('textarea[name="notes"]');
-
-    customerNameInput?.addEventListener('input', (event) => {
-      saleFormState.customerName = event.currentTarget.value || '';
-    });
-
-    includeCpfInput?.addEventListener('change', () => {
-      saleFormState.includeCpf = Boolean(includeCpfInput.checked);
-    });
-
-    customerCpfInput?.addEventListener('input', (event) => {
-      saleFormState.customerCpf = event.currentTarget.value || '';
-    });
-
-    paymentMethodInput?.addEventListener('change', (event) => {
-      saleFormState.paymentMethod = event.currentTarget.value || (paymentMethods?.[0] || 'Dinheiro');
-      updateSaleSummary();
-    });
-
-    discountInput?.addEventListener('input', (event) => {
-      saleFormState.discount = event.currentTarget.value || '0';
-      updateSaleSummary();
-    });
-
-    amountPaidInput?.addEventListener('input', (event) => {
-      saleFormState.amountPaid = event.currentTarget.value || '0';
-      updateSaleSummary();
-    });
-
-    notesInput?.addEventListener('input', (event) => {
-      saleFormState.notes = event.currentTarget.value || '';
-    });
-
-    bindAsyncButton(tabEls.sales.querySelector('#sale-select-client-btn'), async () => {
-      openClientPicker();
-    }, { busyLabel: 'Abrindo...' });
-
-    bindAsyncButton(tabEls.sales.querySelector('#sale-clear-client-btn'), async () => {
-      state.selectedSaleClient = null;
-      saleFormState.customerName = '';
-      saleFormState.includeCpf = false;
-      saleFormState.customerCpf = '';
-
-      const clientInput = tabEls.sales.querySelector('#sale-customer-name');
-      const cpfCheck = tabEls.sales.querySelector('#sale-include-cpf');
-      const cpfInput = tabEls.sales.querySelector('#sale-customer-cpf');
-
-      if (clientInput) clientInput.value = '';
-      if (cpfCheck) cpfCheck.checked = false;
-      if (cpfInput) cpfInput.value = '';
-
-      bindCpfToggle();
-      showToast('Cliente limpo.', 'info');
-    }, { busyLabel: 'Limpando...' });
-
-    bindAsyncButton(tabEls.sales.querySelector('#finish-sale-btn'), async () => {
-      await finishSale();
-    }, { busyLabel: 'Finalizando...' });
-
-    bindAsyncButton(tabEls.sales.querySelector('#clear-cart-btn'), async () => {
-      clearCartWithFeedback();
-    }, { busyLabel: 'Limpando...' });
-
-    tabEls.sales.querySelector('#sales-filter-apply')?.addEventListener('click', () => {
-      saleFilters.customer = tabEls.sales.querySelector('#sales-filter-customer')?.value || '';
-      saleFilters.paymentMethod = tabEls.sales.querySelector('#sales-filter-payment')?.value || '';
-      saleFilters.dateFrom = tabEls.sales.querySelector('#sales-filter-date-from')?.value || '';
-      saleFilters.dateTo = tabEls.sales.querySelector('#sales-filter-date-to')?.value || '';
-      renderHistory();
-    });
-
-    bindAsyncButton(tabEls.sales.querySelector('#sales-filter-clear'), async () => {
-      saleFilters = { customer: '', paymentMethod: '', dateFrom: '', dateTo: '' };
-      render();
-    }, { busyLabel: 'Limpando...' });
-
-    renderSearchResults();
-    renderCart();
-    renderHistory();
-    updateSaleSummary();
-    bindCpfToggle();
-    bindKeyboardShortcuts();
-  }
-
-  return {
-    render
-  };
-}
