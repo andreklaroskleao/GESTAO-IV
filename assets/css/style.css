@@ -2344,3 +2344,188 @@ body.theme-light #tab-sales option {
 .notification-row.is-read {
   opacity: .78;
 }
+
+
+/* =========================
+   AUDITORIA
+========================= */
+
+.audit-row-clickable {
+  cursor: pointer;
+  transition: background-color 0.18s ease, transform 0.12s ease;
+}
+
+.audit-row-clickable:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.audit-row-clickable:active {
+  transform: scale(0.998);
+}
+
+.audit-summary-text {
+  font-size: 12px;
+  opacity: 0.88;
+  line-height: 1.4;
+}
+
+.audit-description-cell {
+  max-width: 320px;
+  line-height: 1.45;
+}
+
+.audit-entity-cell {
+  max-width: 220px;
+  line-height: 1.4;
+}
+
+.audit-user-cell {
+  max-width: 220px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* =========================
+   BADGES DA AUDITORIA
+========================= */
+
+.badge-neutral,
+.badge-success,
+.badge-warning,
+.badge-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.badge-neutral {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f3f3f3;
+}
+
+.badge-success {
+  background: rgba(46, 204, 113, 0.14);
+  color: #8ff0b5;
+  border-color: rgba(46, 204, 113, 0.25);
+}
+
+.badge-warning {
+  background: rgba(241, 196, 15, 0.14);
+  color: #ffd76a;
+  border-color: rgba(241, 196, 15, 0.25);
+}
+
+.badge-danger {
+  background: rgba(231, 76, 60, 0.14);
+  color: #ff9d90;
+  border-color: rgba(231, 76, 60, 0.25);
+}
+
+/* =========================
+   MODAL DE DETALHES DA AUDITORIA
+========================= */
+
+.audit-details-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.audit-details-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.audit-details-card strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.audit-details-card span {
+  display: block;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.audit-section-block {
+  margin-top: 16px;
+}
+
+.audit-section-title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.audit-raw-metadata {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.audit-empty-box {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* =========================
+   TABELA DE ALTERAÇÕES
+========================= */
+
+.audit-changes-table td,
+.audit-changes-table th {
+  vertical-align: top;
+}
+
+.audit-old-value {
+  color: #ffb3a8;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.audit-new-value {
+  color: #9df0bf;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.audit-field-name {
+  font-weight: 700;
+}
+
+.audit-field-label {
+  opacity: 0.82;
+}
+
+/* =========================
+   RESPONSIVIDADE
+========================= */
+
+@media (max-width: 900px) {
+  .audit-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .audit-description-cell,
+  .audit-entity-cell,
+  .audit-user-cell {
+    max-width: none;
+  }
+}
