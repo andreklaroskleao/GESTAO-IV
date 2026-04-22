@@ -509,22 +509,24 @@ export function createProductsModule(ctx) {
     const outOfStock = rows.filter((item) => Number(item.quantity || 0) <= 0).length;
 
     return `
-      <div class="stats-grid">
-        <div class="stat-card">
-          <span class="stat-label">Produtos</span>
-          <strong class="stat-value">${totalProducts}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Ativos</span>
-          <strong class="stat-value">${activeProducts}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Estoque baixo</span>
-          <strong class="stat-value">${lowStock}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Sem estoque</span>
-          <strong class="stat-value">${outOfStock}</strong>
+      <div class="section-summary-card">
+        <div class="section-summary-grid">
+          <div class="section-summary-item">
+            <span>Produtos</span>
+            <strong>${totalProducts}</strong>
+          </div>
+          <div class="section-summary-item">
+            <span>Ativos</span>
+            <strong>${activeProducts}</strong>
+          </div>
+          <div class="section-summary-item">
+            <span>Estoque baixo</span>
+            <strong>${lowStock}</strong>
+          </div>
+          <div class="section-summary-item">
+            <span>Sem estoque</span>
+            <strong>${outOfStock}</strong>
+          </div>
         </div>
       </div>
     `;
