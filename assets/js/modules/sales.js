@@ -1,3 +1,5 @@
+Segue o sales.js completo, atualizado e compatível:
+
 import { escapeHtml, showToast, bindAsyncButton } from './ui.js';
 
 export function createSalesModule(ctx) {
@@ -85,6 +87,22 @@ export function createSalesModule(ctx) {
       state.selectedSaleClient?.document ||
       ''
     ).trim();
+  }
+
+  function getSelectedClientLabel() {
+    if (!state.selectedSaleClient) {
+      return {
+        name: saleFormState.customerName || 'Consumidor final',
+        cpf: saleFormState.includeCpf
+          ? (saleFormState.customerCpf || 'Sem CPF')
+          : 'CPF não informado'
+      };
+    }
+
+    return {
+      name: state.selectedSaleClient.name || 'Cliente selecionado',
+      cpf: getSelectedClientCpf() || 'Sem CPF'
+    };
   }
 
   function syncSaleFormStateFromDom() {
@@ -331,13 +349,28 @@ export function createSalesModule(ctx) {
     return true;
   }
 
+  function getSearchResults(term) {
+    const normalized = String(term || '').trim().toLowerCase();
+    if (!normalized) return [];
+
+    return getActiveProducts()
+      .filter((product) =>
+        [product.name, product.barcode, product.brand, product.supplier]
+          .join(' ')
+          .toLowerCase()
+          .includes(normalized)
+      )
+      .slice(0, 8);
+  }
+
   function renderSearchResults() {
     const resultsEl = tabEls.sales.querySelector('#sale-search-results');
     if (!resultsEl) return;
 
-    const term = String(searchTerm || '').trim().toLowerCase();
+    const term = String(searchTerm || '').trim();
+    const normalized = term.toLowerCase();
 
-    if (!term) {
+    if (!normalized) {
       resultsEl.innerHTML = `
         <div class="empty-state sales-empty-box">
           <strong>Pesquise um produto</strong>
@@ -347,17 +380,10 @@ export function createSalesModule(ctx) {
       return;
     }
 
-    const results = getActiveProducts()
-      .filter((product) =>
-        [product.name, product.barcode, product.brand, product.supplier]
-          .join(' ')
-          .toLowerCase()
-          .includes(term)
-      )
-      .slice(0, 8);
+    const results = getSearchResults(normalized);
 
-    resultsEl.innerHTML = results.map((product) => `
-      <div class="sales-product-result">
+    resultsEl.innerHTML = results.map((product, index) => `
+      <div class="sales-product-result ${index === 0 ? 'is-primary-result' : ''}">
         <div class="sales-product-result-main">
           <strong>${escapeHtml(product.name)}</strong>
           <span>${escapeHtml(product.barcode || 'Sem código')}</span>
@@ -367,7 +393,9 @@ export function createSalesModule(ctx) {
           <strong>${currency(product.salePrice || 0)}</strong>
         </div>
         <div class="sales-product-result-actions">
-          <button class="btn btn-secondary" type="button" data-add-product="${product.id}">Adicionar</button>
+          <button class="btn btn-secondary" type="button" data-add-product="${product.id}">
+            ${index === 0 ? 'Adicionar (Enter)' : 'Adicionar'}
+          </button>
         </div>
       </div>
     `).join('') || `
@@ -401,7 +429,7 @@ export function createSalesModule(ctx) {
         <div class="sales-cart-top">
           <div class="sales-cart-title">
             <strong>${escapeHtml(item.name)}</strong>
-            <span>${escapeHtml(item.barcode || 'Sem código')}</span>
+            <span>${escapeHtml(item.barcode || 'Sem código')} • Unitário ${currency(Number(item.salePrice || 0))}</span>
           </div>
           <div class="sales-cart-price">
             ${currency(Number(item.salePrice || 0))}
@@ -419,7 +447,7 @@ export function createSalesModule(ctx) {
             ${currency(Number(item.salePrice || 0) * Number(item.quantity || 0))}
           </div>
 
-          <button class="icon-action-btn" type="button" data-cart-remove="${item.id}" aria-label="Remover">🗑️</button>
+          <button class="icon-action-btn sales-cart-remove-btn" type="button" data-cart-remove="${item.id}" aria-label="Remover">🗑️</button>
         </div>
       </div>
     `).join('');
@@ -932,7 +960,8 @@ export function createSalesModule(ctx) {
 
     recalcAndRender();
   }
-async function restoreSaleItemsToStock(sale) {
+
+  async function restoreSaleItemsToStock(sale) {
     const items = Array.isArray(sale.items) ? sale.items : [];
 
     for (const item of items) {
@@ -1018,7 +1047,9 @@ async function restoreSaleItemsToStock(sale) {
 
   function renderHistory() {
     const historyEl = tabEls.sales.querySelector('#sales-history-table');
-    if (!historyEl) return;
+    const mobileListEl = tabEls.sales.querySelector('#sales-history-mobile-list');
+
+    if (!historyEl && !mobileListEl) return;
 
     const rows = (state.sales || []).filter((sale) => {
       if (sale.deleted === true) return false;
@@ -1036,34 +1067,67 @@ async function restoreSaleItemsToStock(sale) {
         && (!saleFilters.dateTo || !createdKey || createdKey <= saleFilters.dateTo);
     });
 
-    historyEl.innerHTML = rows.map((sale) => `
-      <tr class="sales-history-row">
-        <td class="sales-history-date">${escapeHtml(formatDateTime(sale.createdAt))}</td>
-        <td>
-          <div class="sales-history-customer">
-            <strong>${escapeHtml(sale.customerName || 'Não identificado')}</strong>
-            <span>${escapeHtml(sale.customerCpf || 'Sem CPF')}</span>
-          </div>
-        </td>
-        <td class="sales-history-payment">${escapeHtml(sale.paymentMethod || '-')}</td>
-        <td class="sales-history-total">${currency(sale.total || 0)}</td>
-        <td>${Array.isArray(sale.items) ? sale.items.length : 0}</td>
-        <td>
-          <div class="sales-history-actions">
-            <button class="icon-action-btn" type="button" data-view-sale="${sale.id}" aria-label="Ver">👁️</button>
-            <button class="icon-action-btn" type="button" data-print-sale="${sale.id}" aria-label="Imprimir">🖨️</button>
-            <button class="icon-action-btn" type="button" data-edit-sale="${sale.id}" aria-label="Editar">✏️</button>
-            <button class="icon-action-btn" type="button" data-delete-sale="${sale.id}" aria-label="Excluir">🗑️</button>
-          </div>
-        </td>
-      </tr>
-    `).join('') || '<tr><td colspan="6">Nenhuma venda encontrada.</td></tr>';
+    if (historyEl) {
+      historyEl.innerHTML = rows.map((sale) => `
+        <tr class="sales-history-row">
+          <td class="sales-history-date">${escapeHtml(formatDateTime(sale.createdAt))}</td>
+          <td>
+            <div class="sales-history-customer">
+              <strong>${escapeHtml(sale.customerName || 'Não identificado')}</strong>
+              <span>${escapeHtml(sale.customerCpf || 'Sem CPF')}</span>
+            </div>
+          </td>
+          <td class="sales-history-payment">${escapeHtml(sale.paymentMethod || '-')}</td>
+          <td class="sales-history-total">${currency(sale.total || 0)}</td>
+          <td>${Array.isArray(sale.items) ? sale.items.length : 0}</td>
+          <td>
+            <div class="sales-history-actions">
+              <button class="icon-action-btn" type="button" data-view-sale="${sale.id}" aria-label="Ver">👁️</button>
+              <button class="icon-action-btn" type="button" data-print-sale="${sale.id}" aria-label="Imprimir">🖨️</button>
+              <button class="icon-action-btn" type="button" data-edit-sale="${sale.id}" aria-label="Editar">✏️</button>
+              <button class="icon-action-btn" type="button" data-delete-sale="${sale.id}" aria-label="Excluir">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="6">Nenhuma venda encontrada.</td></tr>';
+    }
 
-    historyEl.querySelectorAll('[data-view-sale]').forEach((btn) => {
+    if (mobileListEl) {
+      mobileListEl.innerHTML = rows.map((sale) => `
+        <div class="sales-history-sale-card">
+          <div class="sale-card-title">
+            ${escapeHtml(sale.customerName || 'Não identificado')}
+          </div>
+
+          <div class="sale-card-meta">
+            <div><strong>CPF:</strong> ${escapeHtml(sale.customerCpf || 'Sem CPF')}</div>
+            <div><strong>Data:</strong> ${escapeHtml(formatDateTime(sale.createdAt))}</div>
+            <div><strong>Pagamento:</strong> ${escapeHtml(sale.paymentMethod || '-')}</div>
+            <div><strong>Itens:</strong> ${Array.isArray(sale.items) ? sale.items.length : 0}</div>
+            <div><strong>Total:</strong> ${currency(sale.total || 0)}</div>
+            <div><span class="sale-status-badge">Venda registrada</span></div>
+          </div>
+
+          <div class="sale-card-actions">
+            <button class="btn btn-secondary" type="button" data-view-sale="${sale.id}">Ver</button>
+            <button class="btn btn-secondary" type="button" data-print-sale="${sale.id}">Imprimir</button>
+            <button class="btn btn-secondary" type="button" data-edit-sale="${sale.id}">Editar</button>
+            <button class="btn btn-secondary" type="button" data-delete-sale="${sale.id}">Excluir</button>
+          </div>
+        </div>
+      `).join('') || `
+        <div class="empty-state sales-empty-box">
+          <strong>Nenhuma venda encontrada</strong>
+          <span>Ajuste os filtros para localizar registros.</span>
+        </div>
+      `;
+    }
+
+    tabEls.sales.querySelectorAll('[data-view-sale]').forEach((btn) => {
       btn.addEventListener('click', () => openSaleDetailsModal(btn.dataset.viewSale));
     });
 
-    historyEl.querySelectorAll('[data-print-sale]').forEach((btn) => {
+    tabEls.sales.querySelectorAll('[data-print-sale]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const sale = (state.sales || []).find((item) => item.id === btn.dataset.printSale);
         if (!sale) return;
@@ -1071,11 +1135,11 @@ async function restoreSaleItemsToStock(sale) {
       });
     });
 
-    historyEl.querySelectorAll('[data-edit-sale]').forEach((btn) => {
+    tabEls.sales.querySelectorAll('[data-edit-sale]').forEach((btn) => {
       btn.addEventListener('click', () => openEditSaleModal(btn.dataset.editSale));
     });
 
-    historyEl.querySelectorAll('[data-delete-sale]').forEach((btn) => {
+    tabEls.sales.querySelectorAll('[data-delete-sale]').forEach((btn) => {
       btn.addEventListener('click', () => openDeleteSaleModal(btn.dataset.deleteSale));
     });
   }
@@ -1275,6 +1339,7 @@ async function restoreSaleItemsToStock(sale) {
     }
 
     const { subtotal, discount, total, change, amountPaid } = calculateCartTotal();
+    const selectedClientLabel = getSelectedClientLabel();
 
     tabEls.sales.innerHTML = `
       <div class="section-stack sales-page ${isSalesFocusMode() ? 'sales-page-focus' : ''}">
@@ -1319,8 +1384,14 @@ async function restoreSaleItemsToStock(sale) {
                 <strong>Cliente</strong>
                 <div class="form-actions">
                   <button class="btn btn-secondary" type="button" id="sale-select-client-btn">Selecionar cliente</button>
+                  <button class="btn btn-secondary" type="button" id="sale-set-final-consumer-btn">Consumidor final</button>
                   <button class="btn btn-secondary" type="button" id="sale-clear-client-btn">Limpar cliente</button>
                 </div>
+              </div>
+
+              <div class="sales-selected-client-box">
+                <strong>${escapeHtml(selectedClientLabel.name)}</strong>
+                <span>${escapeHtml(selectedClientLabel.cpf)}</span>
               </div>
 
               <div class="form-grid">
@@ -1390,7 +1461,7 @@ async function restoreSaleItemsToStock(sale) {
               <div class="sales-total-line"><span>Desconto</span><strong id="sale-discount-view">${currency(discount)}</strong></div>
               <div class="sales-total-line"><span>Valor pago</span><strong id="sale-paid-view">${currency(amountPaid)}</strong></div>
               <div class="sales-total-line sales-total-highlight"><span>Total</span><strong id="sale-total">${currency(total)}</strong></div>
-              <div class="sales-total-line"><span>Troco</span><strong id="sale-change">${currency(change)}</strong></div>
+              <div class="sales-total-line"><span>Troco</span><strong id="sale-change" class="sales-change-strong">${currency(change)}</strong></div>
             </div>
 
             <div class="form-actions sales-final-actions">
@@ -1432,21 +1503,43 @@ async function restoreSaleItemsToStock(sale) {
               <tbody id="sales-history-table"></tbody>
             </table>
           </div>
+
+          <div id="sales-history-mobile-list" class="sales-history-mobile-list"></div>
         </div>
       </div>
     `;
 
     const searchInput = tabEls.sales.querySelector('#sale-product-search');
+
     searchInput?.addEventListener('input', (event) => {
       searchTerm = event.currentTarget.value || '';
       renderSearchResults();
     });
 
     searchInput?.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        tryAddProductByBarcode(event.currentTarget.value || '', true);
+      if (event.key !== 'Enter') return;
+
+      event.preventDefault();
+
+      const rawValue = event.currentTarget.value || '';
+      const trimmed = String(rawValue).trim();
+      if (!trimmed) return;
+
+      if (tryAddProductByBarcode(trimmed, false)) {
+        return;
       }
+
+      const results = getSearchResults(trimmed);
+      if (results.length) {
+        addProductToCart(results[0].id);
+        event.currentTarget.value = '';
+        searchTerm = '';
+        renderSearchResults();
+        focusSearchInput();
+        return;
+      }
+
+      showToast('Produto não encontrado.', 'error');
     });
 
     const customerNameInput = tabEls.sales.querySelector('#sale-customer-name');
@@ -1491,6 +1584,14 @@ async function restoreSaleItemsToStock(sale) {
     bindAsyncButton(tabEls.sales.querySelector('#sale-select-client-btn'), async () => {
       openClientPicker();
     }, { busyLabel: 'Abrindo...' });
+
+    bindAsyncButton(tabEls.sales.querySelector('#sale-set-final-consumer-btn'), async () => {
+      state.selectedSaleClient = null;
+      saleFormState.customerName = 'Consumidor final';
+      saleFormState.includeCpf = false;
+      saleFormState.customerCpf = '';
+      render();
+    }, { busyLabel: 'Aplicando...' });
 
     bindAsyncButton(tabEls.sales.querySelector('#sale-clear-client-btn'), async () => {
       state.selectedSaleClient = null;
