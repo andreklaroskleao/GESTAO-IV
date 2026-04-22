@@ -233,7 +233,8 @@ export function createOperationalUxModule({ tabEls = {}, state = {} } = {}) {
       modalRoot.querySelector('#account-edit-close') ||
       modalRoot.querySelector('#account-delete-close') ||
       modalRoot.querySelector('#confirm-delete-close') ||
-      modalRoot.querySelector('#global-search-modal-close');
+      modalRoot.querySelector('#global-search-modal-close') ||
+      modalRoot.querySelector('#client-form-close-btn');
 
     if (closeButton) {
       closeButton.click();
