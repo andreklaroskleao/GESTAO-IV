@@ -2285,6 +2285,7 @@ body.theme-light #tab-sales option {
     min-width: 860px;
   }
 }
+
 .audit-changes-list {
   display: grid;
   gap: 4px;
@@ -2299,7 +2300,6 @@ body.theme-light #tab-sales option {
   margin: 0 4px;
   font-weight: 700;
 }
-
 
 #notifications-bell-btn {
   position: relative;
@@ -2344,7 +2344,6 @@ body.theme-light #tab-sales option {
 .notification-row.is-read {
   opacity: .78;
 }
-
 
 /* =========================
    AUDITORIA
