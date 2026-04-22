@@ -127,7 +127,7 @@ export function createSalesModule(ctx) {
   function updateSaleSummary() {
     syncSaleFormStateFromDom();
 
-    const { subtotal, discount, total, change } = calculateCartTotal();
+    const { subtotal, discount, total, change, amountPaid } = calculateCartTotal();
 
     const subtotalEl = tabEls.sales.querySelector('#sale-subtotal');
     const discountEl = tabEls.sales.querySelector('#sale-discount-view');
@@ -441,33 +441,36 @@ export function createSalesModule(ctx) {
             <button class="btn btn-secondary" type="button" id="sale-details-close-btn">Fechar</button>
           </div>
 
-          <div class="form-grid">
-            <div><strong>Data</strong><br>${escapeHtml(formatDateTime(sale.createdAt))}</div>
-            <div><strong>Cliente</strong><br>${escapeHtml(sale.customerName || 'Não identificado')}</div>
-            <div><strong>CPF</strong><br>${escapeHtml(sale.customerCpf || '-')}</div>
-            <div><strong>Pagamento</strong><br>${escapeHtml(sale.paymentMethod || '-')}</div>
-            <div><strong>Operador</strong><br>${escapeHtml(sale.cashierName || '-')}</div>
-            <div><strong>Versão</strong><br>${getSaleVersion(sale)}</div>
+          <div class="sale-modal-grid">
+            <div class="sale-modal-card"><strong>Data</strong><span>${escapeHtml(formatDateTime(sale.createdAt))}</span></div>
+            <div class="sale-modal-card"><strong>Cliente</strong><span>${escapeHtml(sale.customerName || 'Não identificado')}</span></div>
+            <div class="sale-modal-card"><strong>CPF</strong><span>${escapeHtml(sale.customerCpf || '-')}</span></div>
+            <div class="sale-modal-card"><strong>Pagamento</strong><span>${escapeHtml(sale.paymentMethod || '-')}</span></div>
+            <div class="sale-modal-card"><strong>Operador</strong><span>${escapeHtml(sale.cashierName || '-')}</span></div>
+            <div class="sale-modal-card"><strong>Versão</strong><span>${getSaleVersion(sale)}</span></div>
           </div>
 
-          <div class="summary-box" style="margin-top:16px;">
-            <div class="summary-line"><span>Subtotal</span><strong>${currency(sale.subtotal || 0)}</strong></div>
-            <div class="summary-line"><span>Desconto</span><strong>${currency(sale.discount || 0)}</strong></div>
-            <div class="summary-line total"><span>Total</span><strong>${currency(sale.total || 0)}</strong></div>
-            <div class="summary-line"><span>Valor pago</span><strong>${currency(sale.amountPaid || 0)}</strong></div>
-            <div class="summary-line"><span>Troco</span><strong>${currency(sale.change || 0)}</strong></div>
+          <div class="sale-modal-section">
+            <strong class="sale-modal-section-title">Resumo financeiro</strong>
+            <div class="summary-box">
+              <div class="summary-line"><span>Subtotal</span><strong>${currency(sale.subtotal || 0)}</strong></div>
+              <div class="summary-line"><span>Desconto</span><strong>${currency(sale.discount || 0)}</strong></div>
+              <div class="summary-line total"><span>Total</span><strong>${currency(sale.total || 0)}</strong></div>
+              <div class="summary-line"><span>Valor pago</span><strong>${currency(sale.amountPaid || 0)}</strong></div>
+              <div class="summary-line"><span>Troco</span><strong>${currency(sale.change || 0)}</strong></div>
+            </div>
           </div>
 
-          <div style="margin-top:16px;">
-            <strong>Observações</strong>
-            <div class="empty-state" style="text-align:left; margin-top:8px;">
+          <div class="sale-modal-section">
+            <strong class="sale-modal-section-title">Observações</strong>
+            <div class="sale-items-box">
               <span>${escapeHtml(sale.notes || 'Sem observações.')}</span>
             </div>
           </div>
 
-          <div style="margin-top:16px;">
-            <strong>Itens</strong>
-            <div class="table-wrap" style="margin-top:8px;">
+          <div class="sale-modal-section">
+            <strong class="sale-modal-section-title">Itens</strong>
+            <div class="table-wrap sale-items-box">
               <table>
                 <thead>
                   <tr>
@@ -702,7 +705,7 @@ export function createSalesModule(ctx) {
 
     modalRoot.innerHTML = `
       <div class="modal-backdrop" id="edit-sale-modal-backdrop">
-        <div class="modal-card" style="max-width:960px;">
+        <div class="modal-card" style="max-width:980px;">
           <div class="section-header">
             <h2>Editar venda</h2>
             <button class="btn btn-secondary" type="button" id="edit-sale-close-btn">Fechar</button>
@@ -745,11 +748,9 @@ export function createSalesModule(ctx) {
               <textarea name="notes">${escapeHtml(sale.notes || '')}</textarea>
             </label>
 
-            <div style="grid-column:1 / -1;">
-              <div class="section-header">
-                <h3>Itens da venda</h3>
-              </div>
-              <div id="edit-sale-items-host" class="card-scroll-y"></div>
+            <div style="grid-column:1 / -1;" class="sale-modal-section">
+              <strong class="sale-modal-section-title">Itens da venda</strong>
+              <div id="edit-sale-items-host" class="sale-items-box card-scroll-y"></div>
             </div>
 
             <label style="grid-column:1 / -1;">
@@ -757,7 +758,7 @@ export function createSalesModule(ctx) {
               <input id="edit-sale-product-search" type="text" placeholder="Digite nome ou código de barras" />
             </label>
 
-            <div id="edit-sale-product-results" style="grid-column:1 / -1;"></div>
+            <div id="edit-sale-product-results" style="grid-column:1 / -1;" class="sale-edit-products-box"></div>
 
             <div id="edit-sale-totals" class="summary-box" style="grid-column:1 / -1;"></div>
 
@@ -875,9 +876,9 @@ export function createSalesModule(ctx) {
             <button class="btn btn-secondary" type="button" id="delete-sale-close-btn">Fechar</button>
           </div>
 
-          <div class="empty-state" style="text-align:left;">
+          <div class="sale-delete-warning">
             <strong>Atenção</strong>
-            <span>Ao excluir esta venda, o estoque dos produtos será devolvido.</span>
+            <span>Ao excluir esta venda, o estoque dos produtos será devolvido automaticamente.</span>
           </div>
 
           <form id="delete-sale-form" class="form-grid" style="margin-top:16px;">
@@ -952,14 +953,19 @@ export function createSalesModule(ctx) {
     });
 
     historyEl.innerHTML = rows.map((sale) => `
-      <tr>
-        <td>${escapeHtml(formatDateTime(sale.createdAt))}</td>
-        <td>${escapeHtml(sale.customerName || 'Não identificado')}</td>
-        <td>${escapeHtml(sale.paymentMethod || '-')}</td>
-        <td>${currency(sale.total || 0)}</td>
+      <tr class="sales-history-row">
+        <td class="sales-history-date">${escapeHtml(formatDateTime(sale.createdAt))}</td>
+        <td>
+          <div class="sales-history-customer">
+            <strong>${escapeHtml(sale.customerName || 'Não identificado')}</strong>
+            <span>${escapeHtml(sale.customerCpf || 'Sem CPF')}</span>
+          </div>
+        </td>
+        <td class="sales-history-payment">${escapeHtml(sale.paymentMethod || '-')}</td>
+        <td class="sales-history-total">${currency(sale.total || 0)}</td>
         <td>${Array.isArray(sale.items) ? sale.items.length : 0}</td>
         <td>
-          <div class="actions-inline-compact">
+          <div class="sales-history-actions">
             <button class="icon-action-btn" type="button" data-view-sale="${sale.id}" aria-label="Ver">👁️</button>
             <button class="icon-action-btn" type="button" data-print-sale="${sale.id}" aria-label="Imprimir">🖨️</button>
             <button class="icon-action-btn" type="button" data-edit-sale="${sale.id}" aria-label="Editar">✏️</button>
@@ -1306,7 +1312,7 @@ export function createSalesModule(ctx) {
             <button class="btn btn-secondary" type="button" id="sales-filter-clear">Limpar</button>
           </div>
 
-          <div class="table-wrap scroll-dual">
+          <div class="table-wrap scroll-dual sales-history-table-wrap">
             <table>
               <thead>
                 <tr>
