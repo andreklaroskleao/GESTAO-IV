@@ -3034,3 +3034,48 @@ body.theme-light .section-summary-item {
     display: none !important;
   }
 }
+
+/* =========================================
+   CLIENT PICKER - CONTRASTE NO MODO ESCURO
+========================================= */
+
+#sale-client-picker-host,
+#sale-client-picker-host * {
+  color: var(--text);
+}
+
+#sale-client-picker-host input,
+#sale-client-picker-host select,
+#sale-client-picker-host textarea,
+#sale-client-picker-host button {
+  color: var(--text);
+  background: var(--panel);
+}
+
+#sale-client-picker-host .list-item,
+#sale-client-picker-host .client-picker-item,
+#sale-client-picker-host .search-result-item,
+#sale-client-picker-host .card,
+#sale-client-picker-host .panel,
+#sale-client-picker-host .table-card,
+#sale-client-picker-host .compact-card {
+  color: var(--text);
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+}
+
+#sale-client-picker-host .muted,
+#sale-client-picker-host small,
+#sale-client-picker-host .secondary-text,
+#sale-client-picker-host .auth-hint,
+#sale-client-picker-host span {
+  color: var(--text-soft);
+}
+
+#sale-client-picker-host strong,
+#sale-client-picker-host h2,
+#sale-client-picker-host h3,
+#sale-client-picker-host label,
+#sale-client-picker-host p,
+#sale-client-picker-host div {
+  color: var(--text);
+}
